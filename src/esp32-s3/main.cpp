@@ -26,7 +26,7 @@ void handle_movement_ack(Msg* msg){
 
 // Task: receive Msg* from the higher-level UART queue and translate into
 // servo controller commands by calling move_servo_speed()
-// this is needed beacause also the master has a servo
+// this is needed beacause also the root has a servo
 
 void task_execute_servo(void *arg) {
     (void)arg;

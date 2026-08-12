@@ -13,6 +13,7 @@
 #include "driver/uart.h"
 #include "esp_task_wdt.h"
 #include "freertos/semphr.h"
+#include "protocol_manager.h"
 
 //mine
 #include "msg_structs.h"
@@ -135,5 +136,5 @@ void task_execute_servo(void *arg);
 
 
 //*BRIDGE_WIFI.CPP
-void convert_servo_instructions(const std::vector<float>& angles, const std::vector<float>& velocities, const std::vector<float>& accelerations , const std::vector<float>& jerks);
+void convert_servo_instructions(const Command& command);
 

@@ -1,5 +1,7 @@
 #include "utils_uart_comms.h"
 #include "esp_log.h"
+#include "protocol_manager.h"
+#include <cmath>
 using namespace std;
 
 
@@ -10,9 +12,13 @@ using namespace std;
 #ifndef M_PI
     #define M_PI 3.14159265358979323846
 #endif
+// todo questi valori verranno modificati dai comandi M222 M204 e M205
+float default_speed = 1.0f;
+float default_acc = 2.0f;
+float default_jerk = 5.0f;
 
-
-void convert_servo_instructions(const std::vector<float>& angles, const std::vector<float>& velocities, const std::vector<float>& accelerations , const std::vector<float>& jerks){
+void convert_servo_instructions(const Command& command){
+    // qua ci sono solo comandi validi, quindi non serve fare controlli di validità
     int total_nodes = get_ids_array_len();
     int ids_arr[total_nodes];
     get_ids_array(ids_arr, total_nodes);
@@ -22,41 +28,159 @@ void convert_servo_instructions(const std::vector<float>& angles, const std::vec
     //     printf("%d\n", ids_arr[i]);
     // }
 
+    Payload p{};
+    p.payload_servo.speed = default_speed;
+    p.payload_servo.acceleration = default_acc;
+    p.payload_servo.jerk = default_jerk;
+    switch(command.gcode){
+        case Gcode::G6:{
+            // Handle G6 command specifics
+            int target_id=0;
+            bool relative=false; // todo da implementare nel payload
+            // Value-initialize the payload to avoid leaking uninitialized stack bytes
+            if (command.args[0]==R){
+                relative=true;
+            }
+            for (size_t i = 0; i < command.args.size(); i++) { // salterà R se c'è 
+                ESP_LOGI(
+                    "SERVO_API",
+                    "Processing arg %zu: %d with value %.3f",
+                    i,
+                    command.args[i],
+                    command.values[i]
+                );
+                if (command.args[i] == Args::P) {
+                    p.payload_servo.radians = command.values[i] * (M_PI / 180.0f); // Convert degrees to radians
+                } else if (command.args[i] == Args::S) {
+                    // Handle S argument specifics
+                    p.payload_servo.speed = command.values[i];
+                } else if (command.args[i] == Args::A) {
+                    // Handle A argument specifics
+                    p.payload_servo.acceleration = command.values[i];
+                } else if (command.args[i] == Args::J) {
+                    // Handle J argument specifics
+                    p.payload_servo.jerk = command.values[i];
+                } else if (command.args[i] == Args::N) {
+                    if (i<2){
+                        //dopo N è riportata la posizione del servo, che viene usata per identificare l'ID del servo
+                        target_id = ids_arr[static_cast<int>(round(command.values[i]))]; 
+                    }
+                    else{
+                        ESP_LOGI(
+                            "SERVO_API",
+                            "target_id=%d, angle=%.2f deg, radians=%.4f, speed=%.3f, acc=%.3f, jerk=%.3f",
+                            target_id,
+                            p.payload_servo.radians * (180.0f / M_PI), // Convert radians back to degrees for logging
+                            p.payload_servo.radians,
+                            p.payload_servo.speed,
+                            p.payload_servo.acceleration,
+                            p.payload_servo.jerk
+                        );
+                        if (target_id == SELF_ID) {
+                            // It's for the Root: send to the local servo queue
+                            Msg* msg = create_msg(SELF_ID, SELF_ID, type_servo, p);
+                            sort_new_msg(msg);
+                        } else {
+                            // It's for a Slave: route it through UART
+                            Msg* msg = create_msg(SELF_ID, target_id, type_servo, p);
+                            send_msg_to_slave(msg);
+                        }
+                        p = {}; // Reset payload for next command
+                        p.payload_servo.speed = default_speed;
+                        p.payload_servo.acceleration = default_acc;
+                        p.payload_servo.jerk = default_jerk;
+                        target_id = ids_arr[static_cast<int>(round(command.values[i]))];
+                    }
+                }
+            }
+            
+            if (target_id == SELF_ID) {
+                // It's for the Root: send to the local servo queue
+                Msg* msg = create_msg(SELF_ID, SELF_ID, type_servo, p);
+                sort_new_msg(msg);
+            } else {
+                // It's for a Slave: route it through UART
+                Msg* msg = create_msg(SELF_ID, target_id, type_servo, p);
+                send_msg_to_slave(msg);
+            }
+            ESP_LOGI(
+                "SERVO_API",
+                "target_id=%d, angle=%.2f deg, radians=%.4f, speed=%.3f, acc=%.3f, jerk=%.3f",
+                target_id,
+                p.payload_servo.radians * (180.0f / M_PI), // Convert radians back to degrees for logging
+                p.payload_servo.radians,
+                p.payload_servo.speed,
+                p.payload_servo.acceleration,
+                p.payload_servo.jerk
+            );
+            break;
+        }
+        case Gcode::M222:{
+            // Handle M222 command
+            break;
+        }
+        case Gcode::M204:{
+            // Handle M204 command
+            break;
+        }
+        case Gcode::M205:{
+            // Handle M205 command
+            break;
+        }
+        case Gcode::G4:{
+            // Handle G4 command
+            break;
+        }
+        case Gcode::M24:{
+            // Handle M24 command
+            break;
+        }
+        case Gcode::M25:{
+            // Handle M25 command
+            break;
+        }
+        
+    }
+
+
+
     // The vector 'angles' comes from the computer. 
     // We assume angles[0] is for Root (ID 0), angles[1] for first Slave, etc.
-    for (size_t i = 0; i < angles.size(); i++) {
-        if (i >= (size_t)total_nodes) break; // Safety check
+    // for (size_t i = 0; i < command.args.size(); i++) {
+    //     //if (i >= (size_t)total_nodes) break; // Safety check
 
-        // Value-initialize the payload to avoid leaking uninitialized stack bytes
-        Payload p{};
-        // Convert degree (uint16_t) to Radians (float) as expected by your Payload struct
-        p.payload_servo.radians = angles[i] * (M_PI / 180.0f); //! ATTENTO ALLA CONVERSIONE IN RADIANTI, LA VUOI VERAMENTE???
-        // Provide safe defaults for motion parameters if the sender doesn't set them
-        p.payload_servo.speed = velocities[i];           // default normalized speed (1.0 = full)
-        p.payload_servo.acceleration =  accelerations[i];  // reasonable default
-        p.payload_servo.jerk =  jerks[i];         // reasonable default
-        int target_id = ids_arr[i];
-        ESP_LOGI(
-            "SERVO_API",
-            "target_id=%d, angle=%.2f deg, radians=%.4f, speed=%.3f, acc=%.3f, jerk=%.3f",
-            target_id,
-            angles[i],
-            p.payload_servo.radians,
-            p.payload_servo.speed,
-            p.payload_servo.acceleration,
-            p.payload_servo.jerk
-        );
+        
 
-        if (target_id == SELF_ID) {
-            // It's for the Root: send to the local servo queue
-            Msg* msg = create_msg(SELF_ID, SELF_ID, type_servo, p);
-            sort_new_msg(msg);
-        } else {
-            // It's for a Slave: route it through UART
-            Msg* msg = create_msg(SELF_ID, target_id, type_servo, p);
-            send_msg_to_slave(msg);
-        }
-    }
+    //     // Value-initialize the payload to avoid leaking uninitialized stack bytes
+    //     Payload p{};
+    //     // Convert degree (uint16_t) to Radians (float) as expected by your Payload struct
+    //     p.payload_servo.radians = angles[i] * (M_PI / 180.0f); //! ATTENTO ALLA CONVERSIONE IN RADIANTI, LA VUOI VERAMENTE???
+    //     // Provide safe defaults for motion parameters if the sender doesn't set them
+    //     p.payload_servo.speed = velocities[i];           // default normalized speed (1.0 = full)
+    //     p.payload_servo.acceleration =  accelerations[i];  // reasonable default
+    //     p.payload_servo.jerk =  jerks[i];         // reasonable default
+    //     int target_id = ids_arr[i];
+    //     ESP_LOGI(
+    //         "SERVO_API",
+    //         "target_id=%d, angle=%.2f deg, radians=%.4f, speed=%.3f, acc=%.3f, jerk=%.3f",
+    //         target_id,
+    //         angles[i],
+    //         p.payload_servo.radians,
+    //         p.payload_servo.speed,
+    //         p.payload_servo.acceleration,
+    //         p.payload_servo.jerk
+    //     );
+
+    //     if (target_id == SELF_ID) {
+    //         // It's for the Root: send to the local servo queue
+    //         Msg* msg = create_msg(SELF_ID, SELF_ID, type_servo, p);
+    //         sort_new_msg(msg);
+    //     } else {
+    //         // It's for a Slave: route it through UART
+    //         Msg* msg = create_msg(SELF_ID, target_id, type_servo, p);
+    //         send_msg_to_slave(msg);
+    //     }
+    // }
 }
 
 

@@ -104,7 +104,7 @@ void init_uart_comms(){
   //*UART
   init_uart_mutexes();
   init_uart((uart_port_t)U_WITH_SLAVE, FROM_SLAVE_RX, TO_SLAVE_TX);
-  init_uart((uart_port_t)U_WITH_MASTER, FROM_MASTER_RX, TO_MASTER_TX);
+  init_uart((uart_port_t)U_WITH_MASTER, FROM_MASTER_RX, TO_MASTER_TX); //todo viene inizializzata anche nella root?
 
   xTaskCreate(task_receive_uart, "task_receive_uart_master", 10000, (void*)U_WITH_MASTER, 2, nullptr);
   xTaskCreate(task_receive_uart, "task_receive_uart_slave", 10000, (void*)U_WITH_SLAVE, 2, nullptr);
@@ -112,11 +112,6 @@ void init_uart_comms(){
   xTaskCreate(task_send_uart, "task_send_uart_master", 10000, (void*)U_WITH_MASTER, 2, nullptr);
   xTaskCreate(task_send_uart, "task_send_uart_slave", 10000, (void*)U_WITH_SLAVE, 2, nullptr);
 
-  //todo E' SOLO UN MOCKUP, DA RIMUOVERE 
-  xTaskCreate(task_execute_command_01, "task_execute_command_01", 5000, nullptr, 1, nullptr);
-  xTaskCreate(task_execute_command_02, "task_execute_command_02", 5000, nullptr, 1, nullptr);
-  //xTaskCreate(task_execute_servo, "task_execute_servo", 5000, nullptr, 2, nullptr);
-  //todo
 
   //*HANDSHAKE
   int arr[3] = {0,1,2};
