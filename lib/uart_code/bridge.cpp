@@ -117,26 +117,38 @@ void convert_servo_instructions(const Command& command){
         }
         case Gcode::M222:{
             // Handle M222 command
+            default_speed = command.values[0];
+            ESP_LOGI("SERVO_API", "Updated default speed to %.3f", default_speed);
             break;
         }
         case Gcode::M204:{
             // Handle M204 command
+            default_acc = command.values[0];
+            ESP_LOGI("SERVO_API", "Updated default acceleration to %.3f", default_acc);
             break;
         }
         case Gcode::M205:{
             // Handle M205 command
+            default_jerk = command.values[0];
+            ESP_LOGI("SERVO_API", "Updated default jerk to %.3f", default_jerk);
             break;
         }
         case Gcode::G4:{
             // Handle G4 command
+            //todo implementare l'invio di questo comando
+            ESP_LOGI("SERVO_API", "G4 command received, but not implemented yet.");
             break;
         }
         case Gcode::M24:{
             // Handle M24 command
+            //todo implementare l'invio di questo comando
+            ESP_LOGI("SERVO_API", "M24 command received, but not implemented yet.");
             break;
         }
         case Gcode::M25:{
             // Handle M25 command
+            //todo implementare l'invio di questo comando
+            ESP_LOGI("SERVO_API", "M25 command received, but not implemented yet.");
             break;
         }
         

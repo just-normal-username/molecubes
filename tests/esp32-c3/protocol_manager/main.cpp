@@ -23,4 +23,20 @@ extern "C" void app_main() {
     init_wifi();
     vTaskDelay(pdMS_TO_TICKS(2000)); // Wait for Wi-Fi to initialize
     ProtocolManager::handle_incoming("G6 N0 P90.0 S1.0 A2.0 J3.0");
+    vTaskDelay(pdMS_TO_TICKS(2000));
+    ProtocolManager::handle_incoming("G6 N0 P90.0 S1.0 A2.0 J3.0 N1 P45.0 J1.5");
+    vTaskDelay(pdMS_TO_TICKS(2000));
+    ProtocolManager::handle_incoming("M222 2.5");
+    vTaskDelay(pdMS_TO_TICKS(2000));
+    ProtocolManager::handle_incoming("M204 3.5");
+    vTaskDelay(pdMS_TO_TICKS(2000));
+    ProtocolManager::handle_incoming("M205 4.5");
+    vTaskDelay(pdMS_TO_TICKS(2000));
+    ProtocolManager::handle_incoming("G4 1000");
+    vTaskDelay(pdMS_TO_TICKS(2000));
+    ProtocolManager::handle_incoming("M24");
+    vTaskDelay(pdMS_TO_TICKS(2000));
+    ProtocolManager::handle_incoming("M25");
+    vTaskDelay(pdMS_TO_TICKS(2000));
+
 }

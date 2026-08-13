@@ -106,6 +106,24 @@ void ProtocolManager::handle_incoming(const std::string& line)
                 command_started = true;
                 previous_arg = "M205";
             }
+            else if (token == "G4"){
+                command.gcode = Gcode::G4;
+                current_gcode = Gcode::G4;
+                command_started = true;
+                previous_arg = "G4";
+            }
+            else if (token == "M24"){
+                command.gcode = Gcode::M24;
+                current_gcode = Gcode::M24;
+                command_started = true;
+                previous_arg = "M24";
+            }
+            else if (token == "M25"){
+                command.gcode = Gcode::M25;
+                current_gcode = Gcode::M25;
+                command_started = true;
+                previous_arg = "M25";
+            }
             else {
                 reply("ERROR unknown_command — expected G6, M222, M204, or M205");
                 return;
@@ -208,9 +226,38 @@ void ProtocolManager::handle_incoming(const std::string& line)
                     
                     previous_arg = "J";
                 }
+                else{ // in questo caso l'ordine di argomenti è errato
+                    reply("ERROR invalid_format — unexpected argument for G6 command");
+                    return;
+                }
             }
-            else if (current_gcode== Gcode::M222){ //parser per comando M222
+            else if (
+                (current_gcode== Gcode::M222 && previous_arg == "M222")||
+                (current_gcode== Gcode::M204 && previous_arg == "M204")||
+                (current_gcode== Gcode::M205 && previous_arg == "M205")||
+                (current_gcode== Gcode::G4 && previous_arg == "G4")
+            ){ //parser per comando M222
+                char* endptr = nullptr;
+                // Parse strings to floats
+                float value = std::strtof(token.c_str(), &endptr);
                 
+                // Check number format (exception-free)
+                if (endptr == token.c_str() || *endptr != '\0') {
+                    reply("ERROR invalid_format — expected numbers separated by spaces");
+                    return;
+                }
+                command.values.push_back(value);
+                command.args.push_back(Args::N); // argument placeholder
+                previous_arg = "N";
+            }
+            else if (
+                (current_gcode== Gcode::M24 && previous_arg == "M24")||
+                (current_gcode== Gcode::M25 && previous_arg == "M25")){
+                // placeholder
+            }
+            else{ // in questo caso gli argomenti sono errati
+                reply("ERROR invalid_format — unexpected argument for command");
+                return;
             }
 
 
