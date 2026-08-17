@@ -26,7 +26,7 @@ const char* get_role_name(int role) {
 
 static const char* msg_type_to_str(int t){
   switch(t){
-    case type_command_01: return "COMMAND_01";
+    case type_g4: return "COMMAND_G4";
     case type_command_02: return "COMMAND_02";
     case type_handshake:  return "HANDSHAKE";
     case type_report:     return "REPORT";
@@ -63,10 +63,9 @@ void print_msg_struct(Msg* msg){
 
   switch(msg->type){
 
-    case type_command_01:
+    case type_g4:
       printf("Payload (COMMAND_01)\n");
-      printf("str1: %s\n", msg->payload.payload_command_01.str1);
-      printf("str2: %s\n", msg->payload.payload_command_01.str2);
+      printf("millis: %d\n", msg->payload.payload_g4.millis);
       break;
 
     case type_command_02:

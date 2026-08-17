@@ -9,9 +9,8 @@
 
 //todo just for mockup
 typedef struct{
-    char str1[100];
-    char str2[50];
-}PayloadCommand01;
+    int millis;
+}PayloadG4;
 
 typedef struct{
     int num1;
@@ -54,28 +53,34 @@ typedef struct{
     float curr_acc;
 }PayloadCinematicUpdate;
 
+typedef struct{
+    int group_number;
+} PayloadGroup;
+
 
 //con le union alloca sempre i byte x il messaggio + lungo
 typedef union{ 
-    PayloadCommand01 payload_command_01; //todo just for mockup
+    PayloadG4 payload_g4; //todo just for mockup
     PayloadCommand02 payload_command_02; //todo just for mockup
     PayloadHandshake payload_handshake;
     PayloadReport payload_report;
     PayloadServo payload_servo;
     PayloadServoAck payload_servo_ack;
     PayloadCinematicUpdate payload_cinematic_update;
+    PayloadGroup payload_group;
 }Payload;
 
 
 //*MSG DEFINIFION
 typedef enum{
-    type_command_01, //todo just for mockup
+    type_g4,
     type_command_02, //todo just for mockup
     type_handshake,
     type_report,
     type_servo,
     type_servo_ack,
     type_cinematic_update,
+    type_group,
 }MsgType;
 typedef struct __attribute__((packed)){
     uint8_t header;

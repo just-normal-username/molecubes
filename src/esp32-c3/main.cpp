@@ -30,16 +30,19 @@ void task_execute_servo(void *arg) {
         Msg *msg = nullptr;
         if (xQueueReceive(h_queue_servo, &msg, portMAX_DELAY) == pdTRUE) {
             ESP_LOGI("EXEC_SERVO", "Received servo message, speed=%.3f, acc=%.3f, jerk=%.3f", msg->payload.payload_servo.speed, msg->payload.payload_servo.acceleration, msg->payload.payload_servo.jerk);
-            if (msg) {
-                float radians = msg->payload.payload_servo.radians;
-                float speed = msg->payload.payload_servo.speed;
-                float acc = msg->payload.payload_servo.acceleration;
-                float jerk = msg->payload.payload_servo.jerk;
-                esp_err_t err = move_servo_speed(radians, speed, acc, jerk);
-                if (err != ESP_OK) {
-                    ESP_LOGW("EXEC_SERVO", "move_servo_speed failed: %d", err);
+            if (msg) { //todo differenziare per i vari tipi di messaggi
+                if (msg->type == type_servo){
+                    float radians = msg->payload.payload_servo.radians;
+                    float speed = msg->payload.payload_servo.speed;
+                    float acc = msg->payload.payload_servo.acceleration;
+                    float jerk = msg->payload.payload_servo.jerk;
+                    esp_err_t err = move_servo_speed(radians, speed, acc, jerk);
+                    if (err != ESP_OK) {
+                        ESP_LOGW("EXEC_SERVO", "move_servo_speed failed: %d", err);
+                    }
+                    delete msg; // free message allocated by UART layer
                 }
-                delete msg; // free message allocated by UART layer
+                
             }
         }
     }

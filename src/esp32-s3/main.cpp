@@ -5,6 +5,7 @@
 #include "esp_mac.h"
 #include "esp_system.h"
 #include "esp_log.h"
+#include "cmd_buffer.h"
 
 void init_cube();
 // void task_execute_servo(void *arg);
@@ -18,6 +19,16 @@ void init_cube() {
     esp_read_mac(mac, ESP_MAC_WIFI_STA);
     ESP_LOGI("CUBE_INIT", "MAC Address: %02X:%02X:%02X:%02X:%02X:%02X", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
     memcpy(molecube_data.mac, mac, 6); //copying the mac address byte to byte to the molecube_data struct
+}
+
+//inizializza la logica del wifi, uart e del buffer dei comandi
+//essenziale perchè il bridge wifi-uart carica i comandi in una coda che fa da buffer
+// in modo che poi la task che invia i comandi al servo li esegua uno alla volta
+// se in init_command_buffer() non si riesce a creare la coda viene lanciata un eccezione che blocca l'esecuzione
+void init_cmd_logic(){
+    init_wifi();
+    init_uart_comms();
+    esp_err_t ris = init_command_buffer(); //todo gestire tutti i casi di errore terminando ogni task?
 }
 
 void handle_movement_ack(Msg* msg){

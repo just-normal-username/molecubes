@@ -67,11 +67,13 @@ extern bool SHOW_UART_COMMS_LOGS;
 // extern TaskHandle_t h_task_blink_led_once;
 
 //code x tutti i tipi di comandi diversi
-extern QueueHandle_t h_queue_command_01;
+extern QueueHandle_t h_queue_ack;
 extern QueueHandle_t h_queue_command_02;
 extern QueueHandle_t h_queue_handshake;
 extern QueueHandle_t h_queue_report;
 extern QueueHandle_t h_queue_servo;
+
+
 
 //code x inviare messaggi
 extern QueueHandle_t h_queue_send_to_slave;

@@ -22,11 +22,11 @@ enum Args{
     R,
     N
 };
-struct Command{
+typedef struct{
     Gcode gcode;
     std::vector<float> values;
     std::vector<Args> args;
-};
+}Command;
 
 // Callback chiamata quando arriva un comando valido dal computer.
 // Contiene gli angoli dei servomotori (1-5 valori, range 0-270).

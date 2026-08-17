@@ -18,7 +18,7 @@ typedef struct {
     float jerk;
 } ServoTaskParams;
 
-typedef struct {
+typedef struct { //todo inizializzare i valori costanti
     uint32_t duty_res;
     int8_t gpio;
     uint32_t sgnl_min_duty;

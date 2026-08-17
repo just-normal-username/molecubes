@@ -11,6 +11,9 @@ void send_movement_ack(){
     PayloadServoAck ack;
     ack.sender_id=SELF_ID;
     Msg* msg = create_msg(SELF_ID, MASTER_ID, type_servo_ack, Payload{.payload_servo_ack=ack});
+    if (SELF_ID==ROOT_ID){
+        sort_new_msg(msg);
+    }
     send_msg_to_master(msg);
     // Do NOT delete msg here: ownership is transferred to the send subsystem.
     // The message pointer is queued and will be deleted by the task that

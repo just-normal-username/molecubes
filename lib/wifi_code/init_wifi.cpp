@@ -35,7 +35,17 @@ void init_wifi(){
         }
 
         // Forward parsed instructions to the UART bridge for physical motor control
-        convert_servo_instructions(command);
+        try{
+            convert_servo_instructions(command);
+        }
+        catch (const std::bad_alloc& e) {
+            ESP_LOGE("SERVO_API", "Memory allocation failed for Msg: %s", e.what());
+            reply("ERROR memory_allocation_failed — unable to process command");
+        }
+        catch (...) {
+            ESP_LOGE("SERVO_API", "Unknown error occurred while creating Msg");
+            reply("ERROR unknown_error — unable to process command");
+        }
     });
 
     // Start the TCP server and define the connection behavior

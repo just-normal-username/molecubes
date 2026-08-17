@@ -5,6 +5,7 @@
 #include "msg_structs.h"
 #include "utils_uart_comms.h"
 #include "esp_log.h"
+#include <buffer_headers/buffer_header.h>
 
 
 //*GLOBALS
@@ -51,20 +52,24 @@ void init_uart(uart_port_t uart_num, int rx_pin, int tx_pin) {
 
 
 //* _______________________________________UART RECEIVE
-void sort_new_msg(Msg *msg){
-    if(msg->type == type_command_01){
-        xQueueSend(h_queue_command_01, &msg, portMAX_DELAY);
+// qua vengono gestiti i messaggi destinati a me, quelli che devono essere inoltrati vengono inviati direttamente senza passare da qui
+void sort_new_msg(Msg *msg){ //todo da modificare per avere i comandi del servo in h_queue_servo
+    if(msg->type == type_g4||msg->type == type_servo){
+        xQueueSend(h_queue_servo, &msg, portMAX_DELAY);
     }else if (msg->type == type_command_02){
         xQueueSend(h_queue_command_02, &msg, portMAX_DELAY);
     }else if (msg->type == type_handshake){
         xQueueSend(h_queue_handshake, &msg, portMAX_DELAY);
     }else if(msg->type == type_report){
         xQueueSend(h_queue_report, &msg, portMAX_DELAY);
-    }else if(msg->type == type_servo){
-        xQueueSend(h_queue_servo, &msg, portMAX_DELAY);
     }else if(msg->type == type_servo_ack){ 
-        
-        free_msg(msg);
+        //decrementando il contatore di ack
+        ESP_LOGI("UART COMMS", "Ack ricevuto da %d", msg->sender_id);
+        ack_to_receive.fetch_sub(1);
+        if (ack_to_receive.load() == 0) {
+            // sveglia la task del buffer dei comandi
+            xQueueSend(h_queue_start_processing_cmd_buffer, (void *)true, 0);
+        }
     }else{
         if(SHOW_UART_COMMS_LOGS)
             printf("ERRORE: [sort_new_msg] type: %i , non esiste\n", msg->type);

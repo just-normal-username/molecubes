@@ -1,30 +1,30 @@
 #include "utils_uart_comms.h"
 
 //* _______________________________________ MAIN e TEST
-void test_task(void* info){
+// void test_task(void* info){
 
-  int ct =0;
-  while(1){
-    Msg* prova = new Msg(); 
-    prova->header = HEADER_BYTE;
-    prova->footer = FOOTER_4_BYTES;
-    prova->sender_id = 0;
-    prova->target_id = 2;
-    prova->type = type_command_01;
+//   int ct =0;
+//   while(1){
+//     Msg* prova = new Msg(); 
+//     prova->header = HEADER_BYTE;
+//     prova->footer = FOOTER_4_BYTES;
+//     prova->sender_id = 0;
+//     prova->target_id = 2;
+//     prova->type = type_command_01;
 
-    char* s1 = prova->payload.payload_command_01.str1;
-    char* s2 = prova->payload.payload_command_01.str2;
-    sprintf(s1, "MGSN: %d", ct);
-    strcpy(s2, STR_PROVA);
+//     char* s1 = prova->payload.payload_command_01.str1;
+//     char* s2 = prova->payload.payload_command_01.str2;
+//     sprintf(s1, "MGSN: %d", ct);
+//     strcpy(s2, STR_PROVA);
 
-    printf("\nmetto in h_queue_send_to_slave: %p\n", (void*)prova);
+//     printf("\nmetto in h_queue_send_to_slave: %p\n", (void*)prova);
 
-    send_msg_to_slave(prova);
+//     send_msg_to_slave(prova);
 
-    vTaskDelay(pdMS_TO_TICKS(5000));
-    ct++;
-  }
-}
+//     vTaskDelay(pdMS_TO_TICKS(5000));
+//     ct++;
+//   }
+// }
 
 
 void task_loop_print_ids_array(void* info){
@@ -93,7 +93,7 @@ void init_uart_comms(){
   }
 
   //*QUEUES
-  h_queue_command_01 = xQueueCreate(10, sizeof(Msg*));
+  h_queue_ack = xQueueCreate(10, sizeof(Msg*));
   h_queue_command_02 = xQueueCreate(10, sizeof(Msg*));
   h_queue_handshake = xQueueCreate(10, sizeof(Msg*));
   h_queue_send_to_slave = xQueueCreate(10, sizeof(Msg*));
@@ -129,8 +129,8 @@ void init_uart_comms(){
   }
 
   //todo TEST FUNCTION
-  if(SELF_ID == ROOT_ID && TEST_FUN){
-    xTaskCreate(test_task, "test_task", 5000, nullptr, 5, nullptr);
-  }
+  // if(SELF_ID == ROOT_ID && TEST_FUN){
+  //   xTaskCreate(test_task, "test_task", 5000, nullptr, 5, nullptr);
+  // }
 
 }

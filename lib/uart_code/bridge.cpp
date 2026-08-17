@@ -2,6 +2,7 @@
 #include "esp_log.h"
 #include "protocol_manager.h"
 #include <cmath>
+#include <buffer_headers/buffer_header.h>
 using namespace std;
 
 
@@ -16,6 +17,21 @@ using namespace std;
 float default_speed = 1.0f;
 float default_acc = 2.0f;
 float default_jerk = 5.0f;
+
+void create_and_buffer_msg(int sender_id, int target_id, Payload& p){
+    Msg* msg = create_msg(sender_id, target_id, type_servo, p);
+    if (h_queue_cmd_buffer!=NULL){
+        if ( xQueueSend(h_queue_cmd_buffer, &msg, 0) != pdTRUE) { // aggiunge il nuovo comando al buffer, se è pieno ritorna subito
+            ESP_LOGW("SERVO_API", "impossibile aggiungere il comando al buffer, coda piena");
+            throw std::runtime_error("Command buffer pieno, impossibile aggiungere il comando"); // questa eccezione verrà catturata in init_wifi.cpp
+        }
+    }
+    else{
+        ESP_LOGE("SERVO_API", "h_queue_cmd_buffer è NULL");
+        throw std::runtime_error("h_queue_cmd_buffer è NULL");
+    }
+}
+
 
 void convert_servo_instructions(const Command& command){
     // qua ci sono solo comandi validi, quindi non serve fare controlli di validità
@@ -32,6 +48,7 @@ void convert_servo_instructions(const Command& command){
     p.payload_servo.speed = default_speed;
     p.payload_servo.acceleration = default_acc;
     p.payload_servo.jerk = default_jerk;
+    int group_number=0;
     switch(command.gcode){
         case Gcode::G6:{
             // Handle G6 command specifics
@@ -41,6 +58,29 @@ void convert_servo_instructions(const Command& command){
             if (command.args[0]==R){
                 relative=true;
             }
+            for (size_t i =0; i<command.args.size(); i++){
+                if (command.args[i]==N){
+                    group_number+=1;
+                }
+            }
+
+            // creazione e buffering del comando group
+            if (group_number>1){
+                Payload group_payload{};
+                group_payload.payload_group.group_number = group_number;
+                Msg* msg = create_msg(SELF_ID, SELF_ID, type_group, group_payload);
+                if (h_queue_cmd_buffer!=NULL){
+                    if ( xQueueSend(h_queue_cmd_buffer, &msg, 0) != pdTRUE) { // aggiunge il nuovo comando al buffer, se è pieno ritorna subito
+                        ESP_LOGW("SERVO_API", "impossibile aggiungere il comando al buffer, coda piena");
+                        throw std::runtime_error("Command buffer pieno, impossibile aggiungere il comando"); // questa eccezione verrà catturata in init_wifi.cpp
+                    }
+                }
+                else{
+                    ESP_LOGE("SERVO_API", "h_queue_cmd_buffer è NULL");
+                    throw std::runtime_error("h_queue_cmd_buffer è NULL");
+                }
+            }
+
             for (size_t i = 0; i < command.args.size(); i++) { // salterà R se c'è 
                 ESP_LOGI(
                     "SERVO_API",
@@ -78,12 +118,13 @@ void convert_servo_instructions(const Command& command){
                         );
                         if (target_id == SELF_ID) {
                             // It's for the Root: send to the local servo queue
-                            Msg* msg = create_msg(SELF_ID, SELF_ID, type_servo, p);
-                            sort_new_msg(msg);
+                            create_and_buffer_msg(SELF_ID, SELF_ID, p);
+                            //sort_new_msg(msg);
+
                         } else {
                             // It's for a Slave: route it through UART
-                            Msg* msg = create_msg(SELF_ID, target_id, type_servo, p);
-                            send_msg_to_slave(msg);
+                            create_and_buffer_msg(SELF_ID, target_id, p);
+                            //send_msg_to_slave(msg);
                         }
                         p = {}; // Reset payload for next command
                         p.payload_servo.speed = default_speed;
@@ -96,12 +137,12 @@ void convert_servo_instructions(const Command& command){
             
             if (target_id == SELF_ID) {
                 // It's for the Root: send to the local servo queue
-                Msg* msg = create_msg(SELF_ID, SELF_ID, type_servo, p);
-                sort_new_msg(msg);
+                create_and_buffer_msg(SELF_ID, SELF_ID, p);
+                //sort_new_msg(msg);
             } else {
                 // It's for a Slave: route it through UART
-                Msg* msg = create_msg(SELF_ID, target_id, type_servo, p);
-                send_msg_to_slave(msg);
+                create_and_buffer_msg(SELF_ID, target_id, p);
+                //send_msg_to_slave(msg);
             }
             ESP_LOGI(
                 "SERVO_API",
@@ -197,7 +238,7 @@ void convert_servo_instructions(const Command& command){
 
 
 //*BRIDGE ???
-void send_servo_movement_ack_to_root(int my_id, float radians){
+void send_servo_movement_ack_to_root(int my_id, float radians){ //todo viene chiamata?
     // Ensure payload is zero-initialized to avoid garbage bytes
     Payload p{};
     p.payload_servo.radians = radians;
