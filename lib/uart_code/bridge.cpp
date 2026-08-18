@@ -186,19 +186,43 @@ esp_err_t convert_servo_instructions(const Command& command){
         }
         case Gcode::G4:{
             // Handle G4 command
-            //todo implementare l'invio di questo comando
-            ESP_LOGI("SERVO_API", "G4 command received, but not implemented yet.");
+            ESP_LOGI("SERVO_API", "G4 command received");
+            p.payload_g4.millis = static_cast<uint32_t>(command.values[0]);
+            // It's for the Root: send to the local servo queue
+            Msg* msg = create_msg(SELF_ID, SELF_ID, type_g4, p);
+            if (h_queue_cmd_buffer!=NULL){
+                if ( xQueueSend(h_queue_cmd_buffer, &msg, 0) != pdTRUE) { // aggiunge il nuovo comando al buffer, se è pieno ritorna subito
+                    ESP_LOGW("SERVO_API", "impossibile aggiungere il comando al buffer, coda piena");
+                    return ESP_FAIL; // questa eccezione verrà catturata in init_wifi.cpp
+                }
+            }
+            else{
+                ESP_LOGE("SERVO_API", "h_queue_cmd_buffer è NULL");
+                return ESP_FAIL;
+            }
             break;
         }
         case Gcode::M24:{
             // Handle M24 command
-            //todo implementare l'invio di questo comando
+            manual_pause.store(false); // setta la pausa manuale a falso
+            if (xTaskNotify(buffer_task_handle, 0x1, eSetValueWithOverwrite) != pdPASS) {
+                ESP_LOGE("SERVO_API", "Failed to notify buffer task.");
+            }
+            else{
+                ESP_LOGI("SERVO_API", "Buffer task notified successfully.");
+            }
             ESP_LOGI("SERVO_API", "M24 command received, but not implemented yet.");
             break;
         }
         case Gcode::M25:{
             // Handle M25 command
-            //todo implementare l'invio di questo comando
+            manual_pause.store(true); // setta la pausa manuale a vero
+            if (xTaskNotify(buffer_task_handle, 0x2, eSetValueWithOverwrite) != pdPASS) {
+                ESP_LOGE("SERVO_API", "Failed to notify buffer task.");
+            }
+            else{
+                ESP_LOGI("SERVO_API", "Buffer task notified successfully.");
+            }
             ESP_LOGI("SERVO_API", "M25 command received, but not implemented yet.");
             break;
         }

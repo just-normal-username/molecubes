@@ -55,6 +55,7 @@ void init_uart(uart_port_t uart_num, int rx_pin, int tx_pin) {
 // qua vengono gestiti i messaggi destinati a me, quelli che devono essere inoltrati vengono inviati direttamente senza passare da qui
 void sort_new_msg(Msg *msg){ //todo da modificare per avere i comandi del servo in h_queue_servo
     if(msg->type == type_g4||msg->type == type_servo){
+        ESP_LOGI("UART COMMS", "Sorting new message for target_id=%d, type=%d", msg->target_id, msg->type);
         xQueueSend(h_queue_servo, &msg, portMAX_DELAY);
     }else if (msg->type == type_command_02){
         xQueueSend(h_queue_command_02, &msg, portMAX_DELAY);
@@ -65,10 +66,14 @@ void sort_new_msg(Msg *msg){ //todo da modificare per avere i comandi del servo 
     }else if(msg->type == type_servo_ack){ 
         //decrementando il contatore di ack
         ESP_LOGI("UART COMMS", "Ack ricevuto da %d", msg->sender_id);
+        ESP_LOGI("UART COMMS", "ack_to_receive prima: %d", ack_to_receive.load());
         ack_to_receive.fetch_sub(1);
         if (ack_to_receive.load() == 0) {
+            ESP_LOGI("UART COMMS", "buffer task svegliata");
             // sveglia la task del buffer dei comandi
-            xQueueSend(h_queue_start_processing_cmd_buffer, (void *)true, 0);
+            if (xTaskNotify(buffer_task_handle, 0x1, eSetValueWithOverwrite) != pdPASS) {
+                ESP_LOGE("TEST", "Failed to notify buffer task.");
+            }
         }
     }else{
         if(SHOW_UART_COMMS_LOGS)

@@ -4,6 +4,7 @@
 #include <freertos/queue.h>
 #include "esp_log.h"
 #include <cmath>
+#include <buffer_headers/buffer_header.h>
 
 
 
@@ -33,6 +34,7 @@ void send_movement_ack(){
         // (the third parameter is xTicksToWait that specify the maximum amount of time the task should
         // be blocked waiting for a command)
         if (!xQueueReceive(xServoQueue, &cmd, portMAX_DELAY)) continue;
+        ESP_LOGI("Servo", "Received new command: target=%.4f, speed=%.3f, acc=%.3f, jerk=%.3f", cmd.target_rad, cmd.speed, cmd.acc, cmd.jerk);
         servo_data.moving.store(true);
         bool backlash_compensation=false;
 
@@ -309,7 +311,7 @@ void servo_init(){
     ESP_LOGI("SERVO_INIT", "Servo deadzone %f", servo_deadzone);
     //random delay to avoid all the servos to start at the same time and cause a big current absorption peak that could reset the board
     vTaskDelay(pdMS_TO_TICKS(rand()%3000)); 
-    
+    ack_to_receive.store(1); //resetting the ack counter
     move_servo_speed(0.0f, 1.0f, servo_data.max_acc, servo_data.max_jerk); //moving the servo to the initial position with max speed, acc and jerk to ensure a fast initialization
     vTaskDelay(pdMS_TO_TICKS(1000));
 }

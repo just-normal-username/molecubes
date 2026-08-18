@@ -9,4 +9,6 @@ extern std::atomic<int> ack_to_receive; //indice che indica quanti ack sono anco
 
 extern TaskHandle_t buffer_task_handle; // Handle for the buffer task
 
+extern std::atomic<bool> manual_pause; // Flag che indica lo start/stop manuale
+
 esp_err_t init_cmd_buffer();

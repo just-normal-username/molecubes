@@ -11,7 +11,6 @@
 using namespace std;
 
 QueueHandle_t h_queue_cmd_buffer;
-QueueHandle_t h_queue_start_processing_cmd_buffer;
 TaskHandle_t buffer_task_handle = NULL;
 std::atomic<int> ack_to_receive; //indice che indica quanti ack sono ancora da ricevere
 
@@ -20,14 +19,19 @@ std::atomic<int> ack_to_receive; //indice che indica quanti ack sono ancora da r
 std::atomic<bool> status = false; 
 
 
+std::atomic<bool> manual_pause=true; // Flag che indica lo start/stop manuale
+
+
 void buffer_task(void *pvParameters) {
     bool value;
     int group_number=1;
     while (1) {
+        vTaskDelay(pdMS_TO_TICKS(10)); //necessaria per evitare che venga triggerato il WDT su burst di comandi
         if (status.load()==false){
             //se in stato di stop attende la ricezione del messaggio di start, anche in caso di timeout esegue il ciclo e ritorna qui
-            if (ulTaskNotifyTake(h_queue_start_processing_cmd_buffer, &value ,portMAX_DELAY) == pdTRUE) {
-                if (value) {
+            if (ulTaskNotifyTake(pdTRUE,portMAX_DELAY) == 0x1) {
+                // setta lo stato in esecuzione solo se non è in pausa manuale
+                if (!manual_pause.load()) {
                     status.store(true);
                     ESP_LOGI("CMD_BUFFER", "Buffer task started processing commands.");
                 }
@@ -35,11 +39,9 @@ void buffer_task(void *pvParameters) {
         }
         else{
             // se in stato di esecuzione prima di eseguire ogni comando controlla se è arrivato un comando di stop
-            if (xQueueReceive(h_queue_start_processing_cmd_buffer, &value, 0) == pdTRUE) {
-                if (!value) {
-                    status.store(false);
-                    ESP_LOGI("CMD_BUFFER", "Buffer task stopped processing commands.");
-                }
+            if (ulTaskNotifyTake(pdTRUE,0) == 0x2) {
+                status.store(false);
+                ESP_LOGI("CMD_BUFFER", "Buffer task stopped processing commands.");
             }
             if (status.load()==true){
                 //se in stato di esecuzione esegue il prossimo comando
@@ -48,22 +50,27 @@ void buffer_task(void *pvParameters) {
                 //processa i nuovi comandi solo se sono raggruppati o se non ci sono ack da ricevere
                 if (group_number>0||ack_to_receive.load()==0){
                     group_number=group_number>0? group_number-1:0;
-                    if (group_number==0){
-                        //stoppa la task se il gruppo di comandi da processare è terminato
-                        //la task verrà svegliata quando verranno ricevuti i messaggi di ack
-                        xQueueSend(h_queue_start_processing_cmd_buffer, (void *)false, 0);
-                    }
+                    // if (group_number==0){
+                    //     //stoppa la task se il gruppo di comandi da processare è terminato
+                    //     //la task verrà svegliata quando verranno ricevuti i messaggi di ack
+                    //     status.store(false);
+                    // }
                     if (xQueueReceive(h_queue_cmd_buffer, &msg, 0) == pdTRUE) {
                         // Process the received command
                         ESP_LOGI("CMD_BUFFER", "Processing command");
                         if (msg->type == type_group) {
+                            ESP_LOGI("CMD_BUFFER", "Received group command with group_number=%d", msg->payload.payload_group.group_number);
                             group_number=msg->payload.payload_group.group_number;
                         }
                         else if (msg->type == type_servo) {
+                            ESP_LOGI("CMD_BUFFER", "Sending servo command to target_id=%d", msg->target_id);
                             // gestione comando per il servo
                             //aumentando il numero di ack da ricevere,
+                            ESP_LOGI("CMD_BUFFER", "ack_to_receive prima fetch_add: %d", ack_to_receive.load());
                             ack_to_receive.fetch_add(1);
+                            ESP_LOGI("CMD_BUFFER", "ack_to_receive dopo fetch_add: %d", ack_to_receive.load());
                             if (msg->target_id == SELF_ID) {
+                                ESP_LOGI("CMD_BUFFER", "Command is for SELF_ID, sorting locally.");
                                 // It's for the Root: send to the local servo queue
                                 sort_new_msg(msg);
                             } else {
@@ -74,13 +81,24 @@ void buffer_task(void *pvParameters) {
                         else if (msg->type == type_g4) {
                             // blocca l'esecuzione per un certo numero
                             // vtaskdelay usa il numero di tick
+                            ESP_LOGI("CMD_BUFFER", "Received G4 command, delaying for %d milliseconds", msg->payload.payload_g4.millis);
                             vTaskDelay(msg->payload.payload_g4.millis / portTICK_PERIOD_MS);
+                            ESP_LOGI("CMD_BUFFER", "G4 delay completed.");
+                            ESP_LOGI("CMD_BUFFER", "ack_to_receive: %d", ack_to_receive.load());
+                            ESP_LOGI("CMD_BUFFER", "status: %d", status.load());
                         }
                     }
+                    else{
+                        // settando stato di stop, in questo modo la task resta in attesa
+                        status.store(false);
+                    }
+                }
+                else{
+                    // settando stato di stop, in questo modo la task resta in attesa
+                    status.store(false);
                 }
             }
         }
-        //todo
     }
 }
 

@@ -5,9 +5,9 @@
 #include "esp_mac.h"
 #include "esp_system.h"
 #include "esp_log.h"
+#include "protocol_manager.h"
+#include "buffer_headers/buffer_header.h"
 
-void init_cube();
-// void task_execute_servo(void *arg);
 
 struct {
     uint8_t mac[6];
@@ -83,8 +83,10 @@ extern "C" void app_main() {
     ESP_LOGI("BOOT", "Reset reason: %d (%s)", reason, reason_str);
 
     //initializing wifi, uart comms, cube data (mac address) and servo controller
-    init_wifi();
-    init_uart_comms();
+    if (init_cmd_logic() != ESP_OK) {
+        ESP_LOGE("TEST", "Failed to initialize command logic. Halting execution.");
+        return; // Exit if initialization fails
+    }
     init_cube();
     servo_init();
 
