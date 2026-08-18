@@ -93,7 +93,7 @@ void init_uart_comms(){
   }
 
   //*QUEUES
-  h_queue_ack = xQueueCreate(10, sizeof(Msg*));
+  //h_queue_ack = xQueueCreate(10, sizeof(Msg*));
   h_queue_command_02 = xQueueCreate(10, sizeof(Msg*));
   h_queue_handshake = xQueueCreate(10, sizeof(Msg*));
   h_queue_send_to_slave = xQueueCreate(10, sizeof(Msg*));

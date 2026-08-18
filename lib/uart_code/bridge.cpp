@@ -18,22 +18,23 @@ float default_speed = 1.0f;
 float default_acc = 2.0f;
 float default_jerk = 5.0f;
 
-void create_and_buffer_msg(int sender_id, int target_id, Payload& p){
+esp_err_t create_and_buffer_msg(int sender_id, int target_id, Payload& p){
     Msg* msg = create_msg(sender_id, target_id, type_servo, p);
     if (h_queue_cmd_buffer!=NULL){
         if ( xQueueSend(h_queue_cmd_buffer, &msg, 0) != pdTRUE) { // aggiunge il nuovo comando al buffer, se è pieno ritorna subito
             ESP_LOGW("SERVO_API", "impossibile aggiungere il comando al buffer, coda piena");
-            throw std::runtime_error("Command buffer pieno, impossibile aggiungere il comando"); // questa eccezione verrà catturata in init_wifi.cpp
+            return ESP_FAIL; // questa eccezione verrà catturata in init_wifi.cpp
         }
     }
     else{
         ESP_LOGE("SERVO_API", "h_queue_cmd_buffer è NULL");
-        throw std::runtime_error("h_queue_cmd_buffer è NULL");
+        return ESP_FAIL;
     }
+    return ESP_OK;
 }
 
 
-void convert_servo_instructions(const Command& command){
+esp_err_t convert_servo_instructions(const Command& command){
     // qua ci sono solo comandi validi, quindi non serve fare controlli di validità
     int total_nodes = get_ids_array_len();
     int ids_arr[total_nodes];
@@ -49,6 +50,7 @@ void convert_servo_instructions(const Command& command){
     p.payload_servo.acceleration = default_acc;
     p.payload_servo.jerk = default_jerk;
     int group_number=0;
+    esp_err_t result = ESP_OK;
     switch(command.gcode){
         case Gcode::G6:{
             // Handle G6 command specifics
@@ -72,12 +74,12 @@ void convert_servo_instructions(const Command& command){
                 if (h_queue_cmd_buffer!=NULL){
                     if ( xQueueSend(h_queue_cmd_buffer, &msg, 0) != pdTRUE) { // aggiunge il nuovo comando al buffer, se è pieno ritorna subito
                         ESP_LOGW("SERVO_API", "impossibile aggiungere il comando al buffer, coda piena");
-                        throw std::runtime_error("Command buffer pieno, impossibile aggiungere il comando"); // questa eccezione verrà catturata in init_wifi.cpp
+                        return ESP_FAIL; // questa eccezione verrà catturata in init_wifi.cpp
                     }
                 }
                 else{
                     ESP_LOGE("SERVO_API", "h_queue_cmd_buffer è NULL");
-                    throw std::runtime_error("h_queue_cmd_buffer è NULL");
+                    return ESP_FAIL;
                 }
             }
 
@@ -118,12 +120,16 @@ void convert_servo_instructions(const Command& command){
                         );
                         if (target_id == SELF_ID) {
                             // It's for the Root: send to the local servo queue
-                            create_and_buffer_msg(SELF_ID, SELF_ID, p);
+                            if (create_and_buffer_msg(SELF_ID, SELF_ID, p)!= ESP_OK){
+                                return ESP_FAIL;
+                            }
                             //sort_new_msg(msg);
 
                         } else {
                             // It's for a Slave: route it through UART
-                            create_and_buffer_msg(SELF_ID, target_id, p);
+                            if (create_and_buffer_msg(SELF_ID, target_id, p)!= ESP_OK){
+                                return ESP_FAIL;
+                            }
                             //send_msg_to_slave(msg);
                         }
                         p = {}; // Reset payload for next command
@@ -137,11 +143,15 @@ void convert_servo_instructions(const Command& command){
             
             if (target_id == SELF_ID) {
                 // It's for the Root: send to the local servo queue
-                create_and_buffer_msg(SELF_ID, SELF_ID, p);
+                if (create_and_buffer_msg(SELF_ID, SELF_ID, p)!= ESP_OK){
+                    return ESP_FAIL;
+                }
                 //sort_new_msg(msg);
             } else {
                 // It's for a Slave: route it through UART
-                create_and_buffer_msg(SELF_ID, target_id, p);
+                if (create_and_buffer_msg(SELF_ID, target_id, p)!= ESP_OK){
+                    return ESP_FAIL;
+                }
                 //send_msg_to_slave(msg);
             }
             ESP_LOGI(
@@ -234,6 +244,7 @@ void convert_servo_instructions(const Command& command){
     //         send_msg_to_slave(msg);
     //     }
     // }
+    return ESP_OK;
 }
 
 

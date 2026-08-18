@@ -27,7 +27,7 @@ void init_wifi(){
     // Initialize the protocol and define what to do with the received motor data
     ProtocolManager::init(1, [](const Command& command) { //! Riceve i 4 vettori
         
-        ESP_LOGI(TAG, "Comandi servo ricevuti:");
+        ESP_LOGI(TAG, "Comandi servo ricevuti:"); //todo fix this log
         for (int i = 0; i < (int)command.args.size(); i++) {
             // Uso %.1f perché i valori sono float. Modifica il numero dopo il punto per più o meno decimali.
             ESP_LOGI(TAG, "  Servo %d → Angolo: %.1f°, Vel: %.1f, Acc: %.1f, Jerk: %.1f", 
@@ -35,16 +35,8 @@ void init_wifi(){
         }
 
         // Forward parsed instructions to the UART bridge for physical motor control
-        try{
-            convert_servo_instructions(command);
-        }
-        catch (const std::bad_alloc& e) {
-            ESP_LOGE("SERVO_API", "Memory allocation failed for Msg: %s", e.what());
-            reply("ERROR memory_allocation_failed — unable to process command");
-        }
-        catch (...) {
-            ESP_LOGE("SERVO_API", "Unknown error occurred while creating Msg");
-            reply("ERROR unknown_error — unable to process command");
+        if (convert_servo_instructions(command) != ESP_OK) {
+            reply("ERROR — unable to process command");
         }
     });
 

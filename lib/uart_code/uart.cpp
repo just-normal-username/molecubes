@@ -249,6 +249,7 @@ Msg* create_msg(int sender_id, int target_id, MsgType type, Payload payload){
   msg->target_id = target_id;
   msg->type = type;
   msg->payload = payload; //shallow copy
+  //todo fix log
   ESP_LOGI("MSG_STRUCT", "create_msg speed=%.3f, acc=%.3f, jerk=%.3f", payload.payload_servo.speed, payload.payload_servo.acceleration, payload.payload_servo.jerk);
   return msg;
 }

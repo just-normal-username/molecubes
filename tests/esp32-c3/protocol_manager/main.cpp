@@ -5,6 +5,7 @@
 #include "esp_mac.h"
 #include "init_wifi.h"
 #include "protocol_manager.h"
+#include "buffer_headers/buffer_header.h"
 struct {
     uint8_t mac[6];
 } molecube_data;
@@ -15,12 +16,24 @@ void init_cube() {
     ESP_LOGI("CUBE_INIT", "MAC Address: %02X:%02X:%02X:%02X:%02X:%02X", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
     memcpy(molecube_data.mac, mac, 6); //copying the mac address byte to byte to the molecube_data struct
 }
+//inizializza la logica del wifi, uart e del buffer dei comandi
+//essenziale perchè il bridge wifi-uart carica i comandi in una coda che fa da buffer
+// in modo che poi la task che invia i comandi al servo li esegua uno alla volta
+// se in init_cmd_buffer() non si riesce a creare la coda viene lanciata un eccezione che blocca l'esecuzione
+esp_err_t init_cmd_logic(){
+    init_wifi();
+    init_uart_comms();
+    esp_err_t ris = init_cmd_buffer(); //todo gestire tutti i casi di errore terminando ogni task?
+    return ris;
+}
 extern "C" void app_main() {
     ESP_LOGI("TEST", "Starting servo tests...");
-    init_uart_comms();
+    if (init_cmd_logic() != ESP_OK) {
+        ESP_LOGE("TEST", "Failed to initialize command logic. Halting execution.");
+        return; // Exit if initialization fails
+    }
     init_cube();
     servo_init();
-    init_wifi();
     vTaskDelay(pdMS_TO_TICKS(2000)); // Wait for Wi-Fi to initialize
     ProtocolManager::handle_incoming("G6 N0 P90.0 S1.0 A2.0 J3.0");
     vTaskDelay(pdMS_TO_TICKS(2000));
@@ -38,5 +51,12 @@ extern "C" void app_main() {
     vTaskDelay(pdMS_TO_TICKS(2000));
     ProtocolManager::handle_incoming("M25");
     vTaskDelay(pdMS_TO_TICKS(2000));
+    ESP_LOGI("TEST", "debug log");
+    if (xTaskNotify(buffer_task_handle, 0x1, eSetValueWithOverwrite) != pdPASS) {
+        ESP_LOGE("TEST", "Failed to notify buffer task.");
+    }
+    else{
+        ESP_LOGI("TEST", "Buffer task notified successfully.");
+    }
 
 }

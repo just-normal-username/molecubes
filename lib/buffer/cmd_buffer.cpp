@@ -12,6 +12,8 @@ using namespace std;
 
 QueueHandle_t h_queue_cmd_buffer;
 QueueHandle_t h_queue_start_processing_cmd_buffer;
+TaskHandle_t buffer_task_handle = NULL;
+std::atomic<int> ack_to_receive; //indice che indica quanti ack sono ancora da ricevere
 
 //flag che indica lo stato della task. atomic per sicurezza e scalabilità
 // true = la task processa i comandi, false = la task non processa i comandi
@@ -24,7 +26,7 @@ void buffer_task(void *pvParameters) {
     while (1) {
         if (status.load()==false){
             //se in stato di stop attende la ricezione del messaggio di start, anche in caso di timeout esegue il ciclo e ritorna qui
-            if (xQueueReceive(h_queue_start_processing_cmd_buffer, &value ,portMAX_DELAY) == pdTRUE) {
+            if (ulTaskNotifyTake(h_queue_start_processing_cmd_buffer, &value ,portMAX_DELAY) == pdTRUE) {
                 if (value) {
                     status.store(true);
                     ESP_LOGI("CMD_BUFFER", "Buffer task started processing commands.");
@@ -83,10 +85,10 @@ void buffer_task(void *pvParameters) {
 }
 
 esp_err_t init_cmd_buffer() {
-    h_queue_start_processing_cmd_buffer = xQueueCreate(2, sizeof(bool)); //! crea una coda per ricevere il segnale di start o stop
     // la dimensione è 2 per sicurezza
-    h_queue_cmd_buffer = xQueueCreate(200, sizeof(Msg*)); //! crea una coda con spazio per massimo 200 puntatori a Msg
+    h_queue_cmd_buffer = xQueueCreate(100, sizeof(Msg*)); //! crea una coda con spazio per massimo 200 puntatori a Msg
     ack_to_receive.store(0); // inizializza il contatore degli ack da ricevere a 0
+    xTaskCreate(buffer_task, "buffer_task", 4096, NULL, 5, &buffer_task_handle);
     if (h_queue_cmd_buffer == NULL) {
         // Handle error: Queue creation failed
         ESP_LOGE("CMD_BUFFER", "Failed to create command buffer queue");

@@ -67,7 +67,7 @@ extern bool SHOW_UART_COMMS_LOGS;
 // extern TaskHandle_t h_task_blink_led_once;
 
 //code x tutti i tipi di comandi diversi
-extern QueueHandle_t h_queue_ack;
+//extern QueueHandle_t h_queue_ack;
 extern QueueHandle_t h_queue_command_02;
 extern QueueHandle_t h_queue_handshake;
 extern QueueHandle_t h_queue_report;
@@ -138,5 +138,5 @@ void task_execute_servo(void *arg);
 
 
 //*BRIDGE_WIFI.CPP
-void convert_servo_instructions(const Command& command);
+esp_err_t convert_servo_instructions(const Command& command);
 
