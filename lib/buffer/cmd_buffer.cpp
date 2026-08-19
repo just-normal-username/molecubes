@@ -30,6 +30,7 @@ void buffer_task(void *pvParameters) {
         if (status.load()==false){
             //se in stato di stop attende la ricezione del messaggio di start, anche in caso di timeout esegue il ciclo e ritorna qui
             if (ulTaskNotifyTake(pdTRUE,portMAX_DELAY) == 0x1) {
+                ESP_LOGI("CMD_BUFFER", "task buffer ha ricevuto il comando di start, manual_pause=%d", manual_pause.load());
                 // setta lo stato in esecuzione solo se non è in pausa manuale
                 if (!manual_pause.load()) {
                     status.store(true);

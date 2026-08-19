@@ -11,7 +11,7 @@
 void send_movement_ack(){
     PayloadServoAck ack;
     ack.sender_id=SELF_ID;
-    Msg* msg = create_msg(SELF_ID, MASTER_ID, type_servo_ack, Payload{.payload_servo_ack=ack});
+    Msg* msg = create_msg(SELF_ID, ROOT_ID, type_servo_ack, Payload{.payload_servo_ack=ack});
     if (SELF_ID==ROOT_ID){
         sort_new_msg(msg);
     }

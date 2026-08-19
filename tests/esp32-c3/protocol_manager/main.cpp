@@ -81,37 +81,37 @@ extern "C" void app_main() {
         2,
         NULL
     );
-    // vTaskDelay(pdMS_TO_TICKS(2000)); // Wait for Wi-Fi to initialize
+    vTaskDelay(pdMS_TO_TICKS(2000)); // Wait for Wi-Fi to initialize
+    ProtocolManager::handle_incoming("G6 N0 P90.0 S1.0 A2.0 J3.0 N1 P45.0 J1.5 N2 P45.0 J1.5 N3 P45.0 J1.5");
+    vTaskDelay(pdMS_TO_TICKS(2000));
+    ProtocolManager::handle_incoming("G4 5000");
+    vTaskDelay(pdMS_TO_TICKS(2000));
+    ProtocolManager::handle_incoming("G6 N0 P0 S1.0 A2.0 J3.0");
+    vTaskDelay(pdMS_TO_TICKS(2000));
     // ProtocolManager::handle_incoming("G6 N0 P90.0 S1.0 A2.0 J3.0 N1 P45.0 J1.5");
     // vTaskDelay(pdMS_TO_TICKS(2000));
-    // ProtocolManager::handle_incoming("G4 5000");
-    // vTaskDelay(pdMS_TO_TICKS(2000));
-    // ProtocolManager::handle_incoming("G6 N0 P0 S1.0 A2.0 J3.0");
-    // vTaskDelay(pdMS_TO_TICKS(2000));
-    // // ProtocolManager::handle_incoming("G6 N0 P90.0 S1.0 A2.0 J3.0 N1 P45.0 J1.5");
-    // // vTaskDelay(pdMS_TO_TICKS(2000));
-    // ProtocolManager::handle_incoming("M222 2.5");
-    // vTaskDelay(pdMS_TO_TICKS(2000));
-    // ProtocolManager::handle_incoming("M204 3.5");
-    // vTaskDelay(pdMS_TO_TICKS(2000));
-    // ProtocolManager::handle_incoming("M205 4.5");
-    // vTaskDelay(pdMS_TO_TICKS(2000));
-    // ProtocolManager::handle_incoming("M24");
-    // vTaskDelay(pdMS_TO_TICKS(2000));
+    ProtocolManager::handle_incoming("M222 2.5");
+    vTaskDelay(pdMS_TO_TICKS(2000));
+    ProtocolManager::handle_incoming("M204 3.5");
+    vTaskDelay(pdMS_TO_TICKS(2000));
+    ProtocolManager::handle_incoming("M205 4.5");
+    vTaskDelay(pdMS_TO_TICKS(2000));
+    ProtocolManager::handle_incoming("M24");
+    vTaskDelay(pdMS_TO_TICKS(2000));
     // ProtocolManager::handle_incoming("M25");
     // vTaskDelay(pdMS_TO_TICKS(2000));
-    for (int i = 0; i < 98; i++) {
-        ProtocolManager::handle_incoming("G6 N0 P0 S1.0 A2.0 J3.0");
-        vTaskDelay(pdMS_TO_TICKS(10));
-    }
-    ProtocolManager::handle_incoming("G6 N0 P90 S1.0 A2.0 J3.0");
-    ProtocolManager::handle_incoming("M24");
-    ESP_LOGI("TEST", "debug log");
-    if (xTaskNotify(buffer_task_handle, 0x1, eSetValueWithOverwrite) != pdPASS) {
-        ESP_LOGE("TEST", "Failed to notify buffer task.");
-    }
-    else{
-        ESP_LOGI("TEST", "Buffer task notified successfully.");
-    }
+    // for (int i = 0; i < 98; i++) {
+    //     ProtocolManager::handle_incoming("G6 N0 P0 S1.0 A2.0 J3.0");
+    //     vTaskDelay(pdMS_TO_TICKS(10));
+    // }
+    // ProtocolManager::handle_incoming("G6 N0 P90 S1.0 A2.0 J3.0");
+    // ProtocolManager::handle_incoming("M24");
+    // ESP_LOGI("TEST", "debug log");
+    // if (xTaskNotify(buffer_task_handle, 0x1, eSetValueWithOverwrite) != pdPASS) {
+    //     ESP_LOGE("TEST", "Failed to notify buffer task.");
+    // }
+    // else{
+    //     ESP_LOGI("TEST", "Buffer task notified successfully.");
+    // }
 
 }
