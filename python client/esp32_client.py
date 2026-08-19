@@ -258,14 +258,15 @@ def main() -> None:
     else:
         print("\n=======================================================")
         print(f" MODALITÀ MANUALE ATTIVA (Configurato per {num_servos} servi)")
-        print(f" Inserisci {num_servos} angoli separati da spazio.")
-        print(" Opzionale: aggiungi Vel, Acc e Jerk alla fine per sovrascrivere i default.")
-        print(f" Esempi per {num_servos} servi:")
-        print(f"   Solo angoli:   {' '.join(['90'] * num_servos)}")
-        print(f"   Con Vel:       {' '.join(['90'] * num_servos)} 3.5")
-        print(f"   Con Vel+Acc:   {' '.join(['90'] * num_servos)} 3.5 200")
-        print(" Scrivi 'quit' per uscire.")
-        print("=======================================================\n")
+        print
+        # print(f" Inserisci {num_servos} angoli separati da spazio.")
+        # print(" Opzionale: aggiungi Vel, Acc e Jerk alla fine per sovrascrivere i default.")
+        # print(f" Esempi per {num_servos} servi:")
+        # print(f"   Solo angoli:   {' '.join(['90'] * num_servos)}")
+        # print(f"   Con Vel:       {' '.join(['90'] * num_servos)} 3.5")
+        # print(f"   Con Vel+Acc:   {' '.join(['90'] * num_servos)} 3.5 200")
+        # print(" Scrivi 'quit' per uscire.")
+        # print("=======================================================\n")
         
         try:
             while True:

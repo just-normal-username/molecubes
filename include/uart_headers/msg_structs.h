@@ -41,6 +41,7 @@ typedef struct{
     float speed;
     float acceleration;
     float jerk;
+    bool relative;
 }PayloadServo;
 
 typedef struct{

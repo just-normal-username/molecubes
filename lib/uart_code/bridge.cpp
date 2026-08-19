@@ -103,6 +103,8 @@ esp_err_t convert_servo_instructions(const Command& command){
                     // Handle J argument specifics
                     p.payload_servo.jerk = command.values[i];
                 } else if (command.args[i] == Args::N) {
+                    // setta il flag per il comando di posizione relativo
+                    p.payload_servo.relative=relative;
                     if (i<2){
                         //dopo N è riportata la posizione del servo, che viene usata per identificare l'ID del servo
                         target_id = ids_arr[static_cast<int>(round(command.values[i]))]; 
@@ -141,6 +143,8 @@ esp_err_t convert_servo_instructions(const Command& command){
                 }
             }
             
+            // setta il flag per il comando di posizione relativo
+            p.payload_servo.relative=relative;
             if (target_id == SELF_ID) {
                 // It's for the Root: send to the local servo queue
                 if (create_and_buffer_msg(SELF_ID, SELF_ID, p)!= ESP_OK){

@@ -261,7 +261,7 @@ void send_movement_ack(){
 }
 
 
-esp_err_t move_servo_speed(float rad, float speed, float acc, float jerk){
+esp_err_t move_servo_speed(float rad, float speed, float acc, float jerk, bool relative) {
     ESP_LOGI("SERVO_API", "move_servo_speed called with rad=%.2f, speed=%.2f, acc=%.2f, jerk=%.2f", rad, speed, acc, jerk);
     ESP_LOGI("SERVO_API", "Current servo state: pos=%.2f, speed=%.2f, acc=%.2f", servo_data.current_pos.load(), servo_data.current_speed.load(), servo_data.current_acc.load());
     if (xServoQueue == NULL) {
@@ -270,7 +270,12 @@ esp_err_t move_servo_speed(float rad, float speed, float acc, float jerk){
     }
 
     ServoTaskParams params;
-    params.target_rad = rad;
+    // gestisce i comandi di posizione relativa
+    if (relative) {
+        params.target_rad = servo_data.current_pos.load() + rad;
+    } else {
+        params.target_rad = rad;
+    }
     // sanitizing input parameters to ensure they are within the servo limits
     params.speed = speed>servo_data.max_speed?servo_data.max_speed:speed;
     params.acc = acc>servo_data.max_acc?servo_data.max_acc:acc;
