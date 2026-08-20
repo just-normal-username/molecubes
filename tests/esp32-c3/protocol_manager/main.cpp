@@ -31,29 +31,29 @@ esp_err_t init_cmd_logic(){
 // servo controller commands by calling move_servo_speed()
 // this is needed beacause also the root has a servo
 
-void task_execute_servo(void *arg) {
-    (void)arg;
-    extern QueueHandle_t h_queue_servo; // declared in utils_uart_comms.h / GLOBAL_VARS.cpp
+// void task_execute_servo(void *arg) {
+//     (void)arg;
+//     extern QueueHandle_t h_queue_servo; // declared in utils_uart_comms.h / GLOBAL_VARS.cpp
 
-    while (1) {
-        Msg *msg = nullptr;
-        if (xQueueReceive(h_queue_servo, &msg, portMAX_DELAY) == pdTRUE) {
-            ESP_LOGI("EXEC_SERVO", "Received servo message, speed=%.3f, acc=%.3f, jerk=%.3f", msg->payload.payload_servo.speed, msg->payload.payload_servo.acceleration, msg->payload.payload_servo.jerk);
-            if (msg) {
-                float radians = msg->payload.payload_servo.radians;
-                float speed = msg->payload.payload_servo.speed;
-                float acc = msg->payload.payload_servo.acceleration;
-                float jerk = msg->payload.payload_servo.jerk;
-                esp_err_t err = move_servo_speed(radians, speed, acc, jerk, msg->payload.payload_servo.relative);
-                if (err != ESP_OK) {
-                    ESP_LOGW("EXEC_SERVO", "move_servo_speed failed: %d", err);
-                }
-                delete msg; // free message allocated by UART layer
-            }
-        }
-        vTaskDelay(pdMS_TO_TICKS(10)); // piccola attesa per evitare che venga triggerata la WDT
-    }
-}
+//     while (1) {
+//         Msg *msg = nullptr;
+//         if (xQueueReceive(h_queue_servo, &msg, portMAX_DELAY) == pdTRUE) {
+//             ESP_LOGI("EXEC_SERVO", "Received servo message, speed=%.3f, acc=%.3f, jerk=%.3f", msg->payload.payload_servo.speed, msg->payload.payload_servo.acceleration, msg->payload.payload_servo.jerk);
+//             if (msg) {
+//                 float radians = msg->payload.payload_servo.radians;
+//                 float speed = msg->payload.payload_servo.speed;
+//                 float acc = msg->payload.payload_servo.acceleration;
+//                 float jerk = msg->payload.payload_servo.jerk;
+//                 esp_err_t err = move_servo_speed(radians, speed, acc, jerk, msg->payload.payload_servo.relative);
+//                 if (err != ESP_OK) {
+//                     ESP_LOGW("EXEC_SERVO", "move_servo_speed failed: %d", err);
+//                 }
+//                 delete msg; // free message allocated by UART layer
+//             }
+//         }
+//         vTaskDelay(pdMS_TO_TICKS(10)); // piccola attesa per evitare che venga triggerata la WDT
+//     }
+// }
 
 
 extern "C" void app_main() {
@@ -73,14 +73,14 @@ extern "C" void app_main() {
     // create and start the task that listens for servo messages coming from
     // the UART/protocol layer and forwards movement commands to the
     // servo controller (move_servo_speed)
-    xTaskCreate(
-        task_execute_servo,
-        "ExecServoTask",
-        3072,
-        NULL,
-        2,
-        NULL
-    );
+    // xTaskCreate(
+    //     task_execute_servo,
+    //     "ExecServoTask",
+    //     3072,
+    //     NULL,
+    //     2,
+    //     NULL
+    // );
     vTaskDelay(pdMS_TO_TICKS(2000)); // Wait for Wi-Fi to initialize
     ProtocolManager::handle_incoming("G6 N0 P90.0 S1.0 A2.0 J3.0 N1 P45.0 J1.5 N2 P45.0 J1.5 N3 P45.0 J1.5");
     vTaskDelay(pdMS_TO_TICKS(2000));

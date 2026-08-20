@@ -113,6 +113,8 @@ esp_err_t convert_servo_instructions(const Command& command){
                 } else if (command.args[i] == Args::N) {
                     // setta il flag per il comando di posizione relativo
                     p.payload_servo.relative=relative;
+                    // setta il flag per l'invio dell'ack
+                    p.payload_servo.send_ack=true; 
                     if (i<2){
                         //dopo N è riportata la posizione del servo, che viene usata per identificare l'ID del servo
                         if (command.values[i]<0 || command.values[i]>=total_nodes){
@@ -164,6 +166,7 @@ esp_err_t convert_servo_instructions(const Command& command){
             
             // setta il flag per il comando di posizione relativo
             p.payload_servo.relative=relative;
+            p.payload_servo.send_ack=true; // setta il flag per l'invio dell'ack
             if (target_id == SELF_ID) {
                 // It's for the Root: send to the local servo queue
                 if (create_and_buffer_msg(SELF_ID, SELF_ID, p)!= ESP_OK){

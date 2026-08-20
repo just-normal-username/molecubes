@@ -16,6 +16,7 @@ typedef struct {
     float speed;
     float acc;
     float jerk;
+    bool send_ack;
 } ServoTaskParams;
 
 typedef struct { //todo inizializzare i valori costanti

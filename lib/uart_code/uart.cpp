@@ -53,7 +53,7 @@ void init_uart(uart_port_t uart_num, int rx_pin, int tx_pin) {
 
 //* _______________________________________UART RECEIVE
 // qua vengono gestiti i messaggi destinati a me, quelli che devono essere inoltrati vengono inviati direttamente senza passare da qui
-void sort_new_msg(Msg *msg){ //todo da modificare per avere i comandi del servo in h_queue_servo
+void sort_new_msg(Msg *msg){ //todo g4 qua non dovrebbe mai arrivare
     if(msg->type == type_g4||msg->type == type_servo){
         ESP_LOGI("UART COMMS", "Sorting new message for target_id=%d, type=%d", msg->target_id, msg->type);
         xQueueSend(h_queue_servo, &msg, portMAX_DELAY);

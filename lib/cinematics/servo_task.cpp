@@ -25,6 +25,7 @@ void send_movement_ack(){
 
  void move_servo_speed_task_state_machine(void *pvParameters) {
     ServoTaskParams cmd;
+    Msg* msg = nullptr;
 
     TickType_t xFrequency  = pdMS_TO_TICKS(20);
 
@@ -33,8 +34,9 @@ void send_movement_ack(){
         // there is a new command in the queue
         // (the third parameter is xTicksToWait that specify the maximum amount of time the task should
         // be blocked waiting for a command)
-        if (!xQueueReceive(xServoQueue, &cmd, portMAX_DELAY)) continue;
+        if (!xQueueReceive(h_queue_servo, &msg, portMAX_DELAY)) continue;
         ESP_LOGI("Servo", "Received new command: target=%.4f, speed=%.3f, acc=%.3f, jerk=%.3f", cmd.target_rad, cmd.speed, cmd.acc, cmd.jerk);
+        cmd=sanitize_servo_command(msg);
         servo_data.moving.store(true);
         bool backlash_compensation=false;
 
@@ -73,10 +75,10 @@ void send_movement_ack(){
             // main loop with state machine for motion profiling
             while (!done) {
                  // if there is a new command in the queue, preempt the current motion and start the new one immediately
-                ServoTaskParams next;
-                if (xQueueReceive(xServoQueue, &next, 0) == pdTRUE) {
+                Msg* next=nullptr;
+                if (xQueueReceive(h_queue_servo, &next, 0) == pdTRUE) {
                     servo_data.current_pos.store(pos);
-                    cmd = next;
+                    cmd = sanitize_servo_command(next);
                     // seting the flag to restart the FSM
                     restart = true;
                     // breaking the loop to restart the FSM with the new command
@@ -247,51 +249,42 @@ void send_movement_ack(){
         if (backlash_compensation){
             // if we have done a backlash compensation, we need to move the servo back to the original target position to compensate for the backlash
             vTaskDelay(pdMS_TO_TICKS(500)); 
-            ServoTaskParams backlash_cmd;
-            backlash_cmd.target_rad = cmd.target_rad;
-            backlash_cmd.speed = 0.5f;
-            backlash_cmd.acc = 10.0f;
-            backlash_cmd.jerk = 30.0f;
-            xQueueSend(xServoQueue, &backlash_cmd, 0); // we can send the command directly to the queue, the FSM will take care of executing it immediately
+            Payload p={};
+            p.payload_servo.radians=cmd.target_rad;
+            p.payload_servo.speed=0.5f;
+            p.payload_servo.acceleration=10.0f;
+            p.payload_servo.jerk=30.0f;
+            p.payload_servo.send_ack=true;
+            Msg* backlash_cmd=create_msg(SELF_ID, SELF_ID, type_servo, p);
+            xQueueSend(h_queue_servo, &backlash_cmd, 0); // we can send the command directly to the queue, the FSM will take care of executing it immediately
         }
         else{
-            send_movement_ack();
+            if (cmd.send_ack){
+                send_movement_ack();
+            }
         }
     }
 }
 
 
-esp_err_t move_servo_speed(float rad, float speed, float acc, float jerk, bool relative, bool send_ack) {
-    ESP_LOGI("SERVO_API", "move_servo_speed called with rad=%.2f, speed=%.2f, acc=%.2f, jerk=%.2f", rad, speed, acc, jerk);
+ServoTaskParams sanitize_servo_command(Msg* msg) {
+    ESP_LOGI("SERVO_API", "move_servo_speed called with rad=%.2f, speed=%.2f, acc=%.2f, jerk=%.2f", msg->payload.payload_servo.radians, msg->payload.payload_servo.speed, msg->payload.payload_servo.acceleration, msg->payload.payload_servo.jerk);
     ESP_LOGI("SERVO_API", "Current servo state: pos=%.2f, speed=%.2f, acc=%.2f", servo_data.current_pos.load(), servo_data.current_speed.load(), servo_data.current_acc.load());
-    if (xServoQueue == NULL) {
-        ESP_LOGE("SERVO_API", "Errore: Coda non inizializzata!");
-        return ESP_ERR_INVALID_STATE;
-    }
 
     ServoTaskParams params;
     // gestisce i comandi di posizione relativa
-    if (relative) {
-        params.target_rad = servo_data.current_pos.load() + rad;
+    if (msg->payload.payload_servo.relative) {
+        params.target_rad = servo_data.current_pos.load() + msg->payload.payload_servo.radians;
     } else {
-        params.target_rad = rad;
+        params.target_rad = msg->payload.payload_servo.radians;
     }
     // sanitizing input parameters to ensure they are within the servo limits
-    params.speed = speed>servo_data.max_speed?servo_data.max_speed:speed;
-    params.acc = acc>servo_data.max_acc?servo_data.max_acc:acc;
-    params.jerk = jerk>servo_data.max_jerk?servo_data.max_jerk:jerk;
-    // if the queue is full, we drop the oldest command to make room for the new one, ensuring that the servo always moves towards the most recent target position
-    //ensuring reactivity
-    if (xQueueSend(xServoQueue, &params, 0) != pdPASS) {
-        ServoTaskParams dropped;
-        xQueueReceive(xServoQueue, &dropped, 0);
-        // trying to send the new command again after dropping the oldest one
-        if (xQueueSend(xServoQueue, &params, 0) != pdPASS) {
-            return ESP_ERR_INVALID_STATE;
-        }
-    }
-
-    return ESP_OK;
+    params.speed = msg->payload.payload_servo.speed>servo_data.max_speed?servo_data.max_speed:msg->payload.payload_servo.speed;
+    params.acc = msg->payload.payload_servo.acceleration>servo_data.max_acc?servo_data.max_acc:msg->payload.payload_servo.acceleration;
+    params.jerk = msg->payload.payload_servo.jerk>servo_data.max_jerk?servo_data.max_jerk:msg->payload.payload_servo.jerk;
+    params.send_ack = msg->payload.payload_servo.send_ack;
+    delete msg; // free message allocated by UART layer
+    return params;
 }
 
 
@@ -316,6 +309,13 @@ void servo_init(){
     ESP_LOGI("SERVO_INIT", "Servo deadzone %f", servo_deadzone);
     //random delay to avoid all the servos to start at the same time and cause a big current absorption peak that could reset the board
     vTaskDelay(pdMS_TO_TICKS(rand()%3000)); 
-    move_servo_speed(0.0f, 1.0f, servo_data.max_acc, servo_data.max_jerk, false, false); //moving the servo to the initial position with max speed, acc and jerk to ensure a fast initialization
+    Payload p={};
+    p.payload_servo.radians=0.0f;
+    p.payload_servo.speed=1.0f;
+    p.payload_servo.acceleration=servo_data.max_acc;
+    p.payload_servo.jerk=servo_data.max_jerk;
+    p.payload_servo.send_ack=false;
+    Msg* init_cmd=create_msg(SELF_ID, SELF_ID, type_servo, p);
+    xQueueSend(h_queue_servo, &init_cmd, 0); //moving the servo to the initial position with max speed, acc and jerk to ensure a fast initialization
     vTaskDelay(pdMS_TO_TICKS(1000));
 }
