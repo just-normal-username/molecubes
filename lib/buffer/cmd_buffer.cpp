@@ -49,6 +49,7 @@ void buffer_task(void *pvParameters) {
                 //todo implementare G4, group e ack
                 Msg* msg;
                 //processa i nuovi comandi solo se sono raggruppati o se non ci sono ack da ricevere
+                ESP_LOGI("CMD_BUFFER", "ack_to_receive: %d, group_number: %d", ack_to_receive.load(), group_number);
                 if (group_number>0||ack_to_receive.load()==0){
                     group_number=group_number>0? group_number-1:0;
                     // if (group_number==0){

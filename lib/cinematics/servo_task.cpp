@@ -261,7 +261,7 @@ void send_movement_ack(){
 }
 
 
-esp_err_t move_servo_speed(float rad, float speed, float acc, float jerk, bool relative) {
+esp_err_t move_servo_speed(float rad, float speed, float acc, float jerk, bool relative, bool send_ack) {
     ESP_LOGI("SERVO_API", "move_servo_speed called with rad=%.2f, speed=%.2f, acc=%.2f, jerk=%.2f", rad, speed, acc, jerk);
     ESP_LOGI("SERVO_API", "Current servo state: pos=%.2f, speed=%.2f, acc=%.2f", servo_data.current_pos.load(), servo_data.current_speed.load(), servo_data.current_acc.load());
     if (xServoQueue == NULL) {
@@ -316,7 +316,6 @@ void servo_init(){
     ESP_LOGI("SERVO_INIT", "Servo deadzone %f", servo_deadzone);
     //random delay to avoid all the servos to start at the same time and cause a big current absorption peak that could reset the board
     vTaskDelay(pdMS_TO_TICKS(rand()%3000)); 
-    ack_to_receive.store(1); //resetting the ack counter
-    move_servo_speed(0.0f, 1.0f, servo_data.max_acc, servo_data.max_jerk, false); //moving the servo to the initial position with max speed, acc and jerk to ensure a fast initialization
+    move_servo_speed(0.0f, 1.0f, servo_data.max_acc, servo_data.max_jerk, false, false); //moving the servo to the initial position with max speed, acc and jerk to ensure a fast initialization
     vTaskDelay(pdMS_TO_TICKS(1000));
 }
