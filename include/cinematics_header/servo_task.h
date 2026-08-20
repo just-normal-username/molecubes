@@ -5,7 +5,7 @@
 
 // forward declarations
 void move_servo_speed_task_state_machine(void * pvParameters);
-esp_err_t move_servo_speed(float rad, float speed, float acc, float jerk);
+esp_err_t move_servo_speed(float rad, float speed, float acc, float jerk, bool relative);
 void servo_init();
 void send_movement_ack();
 

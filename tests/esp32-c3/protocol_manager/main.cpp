@@ -44,7 +44,7 @@ void task_execute_servo(void *arg) {
                 float speed = msg->payload.payload_servo.speed;
                 float acc = msg->payload.payload_servo.acceleration;
                 float jerk = msg->payload.payload_servo.jerk;
-                esp_err_t err = move_servo_speed(radians, speed, acc, jerk);
+                esp_err_t err = move_servo_speed(radians, speed, acc, jerk, msg->payload.payload_servo.relative);
                 if (err != ESP_OK) {
                     ESP_LOGW("EXEC_SERVO", "move_servo_speed failed: %d", err);
                 }

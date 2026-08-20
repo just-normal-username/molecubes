@@ -317,6 +317,6 @@ void servo_init(){
     //random delay to avoid all the servos to start at the same time and cause a big current absorption peak that could reset the board
     vTaskDelay(pdMS_TO_TICKS(rand()%3000)); 
     ack_to_receive.store(1); //resetting the ack counter
-    move_servo_speed(0.0f, 1.0f, servo_data.max_acc, servo_data.max_jerk); //moving the servo to the initial position with max speed, acc and jerk to ensure a fast initialization
+    move_servo_speed(0.0f, 1.0f, servo_data.max_acc, servo_data.max_jerk, false); //moving the servo to the initial position with max speed, acc and jerk to ensure a fast initialization
     vTaskDelay(pdMS_TO_TICKS(1000));
 }

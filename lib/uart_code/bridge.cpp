@@ -19,19 +19,24 @@ float default_acc = 2.0f;
 float default_jerk = 5.0f;
 
 esp_err_t create_and_buffer_msg(int sender_id, int target_id, Payload& p){
-    Msg* msg = create_msg(sender_id, target_id, type_servo, p);
-    if (h_queue_cmd_buffer!=NULL){
-        if ( xQueueSend(h_queue_cmd_buffer, &msg, 0) != pdTRUE) { // aggiunge il nuovo comando al buffer, se è pieno ritorna subito
-            ESP_LOGW("SERVO_API", "impossibile aggiungere il comando al buffer, coda piena");
-            return ESP_FAIL; // questa eccezione verrà catturata in init_wifi.cpp
+    // se la posizione del servo non è valida e quindi target_id è -1 viene ignorato il messaggio
+    if (target_id != -1){
+        Msg* msg = create_msg(sender_id, target_id, type_servo, p);
+        if (h_queue_cmd_buffer!=NULL){
+            if ( xQueueSend(h_queue_cmd_buffer, &msg, 0) != pdTRUE) { // aggiunge il nuovo comando al buffer, se è pieno ritorna subito
+                ESP_LOGW("SERVO_API", "impossibile aggiungere il comando al buffer, coda piena");
+                return ESP_FAIL; // questa eccezione verrà catturata in init_wifi.cpp
+            }
+        }
+        else{
+            ESP_LOGE("SERVO_API", "h_queue_cmd_buffer è NULL");
+            return ESP_FAIL;
         }
     }
-    else{
-        ESP_LOGE("SERVO_API", "h_queue_cmd_buffer è NULL");
-        return ESP_FAIL;
-    }
     return ESP_OK;
+
 }
+
 
 
 esp_err_t convert_servo_instructions(const Command& command){
@@ -62,7 +67,10 @@ esp_err_t convert_servo_instructions(const Command& command){
             }
             for (size_t i =0; i<command.args.size(); i++){
                 if (command.args[i]==N){
-                    group_number+=1;
+                    //ignora il comando se la posizione del modulo non è valida
+                    if (command.values[i]>=0 && command.values[i]<total_nodes){
+                        group_number+=1;
+                    }
                 }
             }
 
@@ -107,12 +115,18 @@ esp_err_t convert_servo_instructions(const Command& command){
                     p.payload_servo.relative=relative;
                     if (i<2){
                         //dopo N è riportata la posizione del servo, che viene usata per identificare l'ID del servo
-                        target_id = ids_arr[static_cast<int>(round(command.values[i]))]; 
+                        if (command.values[i]<0 || command.values[i]>=total_nodes){
+                            target_id=-1; //posizione non valida
+                        }
+                        else{
+                            target_id = ids_arr[static_cast<int>(round(command.values[i]))];
+                        } 
                     }
                     else{
                         ESP_LOGI(
                             "SERVO_API",
-                            "target_id=%d, angle=%.2f deg, radians=%.4f, speed=%.3f, acc=%.3f, jerk=%.3f",
+                            "total_nodes= %d, target_id=%d, angle=%.2f deg, radians=%.4f, speed=%.3f, acc=%.3f, jerk=%.3f",
+                            total_nodes,
                             target_id,
                             p.payload_servo.radians * (180.0f / M_PI), // Convert radians back to degrees for logging
                             p.payload_servo.radians,
@@ -138,7 +152,12 @@ esp_err_t convert_servo_instructions(const Command& command){
                         p.payload_servo.speed = default_speed;
                         p.payload_servo.acceleration = default_acc;
                         p.payload_servo.jerk = default_jerk;
-                        target_id = ids_arr[static_cast<int>(round(command.values[i]))];
+                        if (command.values[i]<0 || command.values[i]>=total_nodes){
+                            target_id=-1; //posizione non valida
+                        }
+                        else{
+                            target_id = ids_arr[static_cast<int>(round(command.values[i]))];
+                        } 
                     }
                 }
             }
