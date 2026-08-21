@@ -4,6 +4,7 @@
 #include <vector>
 #include <functional>
 #include <string>
+#include <esp_err.h>
 
 enum Gcode {
     G6,
@@ -12,7 +13,8 @@ enum Gcode {
     M205,
     G4,
     M24,
-    M25
+    M25,
+    M505
 };
 enum Args{
     P,
@@ -53,7 +55,7 @@ public:
      * Chiama questa funzione quando arriva una riga grezza dal TCP server.
      * Esegue il parsing, la validazione e invoca la callback o invia un errore.
      */
-    static void handle_incoming(const std::string& line);
+    static esp_err_t handle_incoming(const std::string& line);
 };
 extern uint8_t s_num_servos;
 

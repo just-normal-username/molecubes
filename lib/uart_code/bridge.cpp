@@ -237,7 +237,6 @@ esp_err_t convert_servo_instructions(const Command& command){
             else{
                 ESP_LOGI("SERVO_API", "Buffer task notified successfully.");
             }
-            ESP_LOGI("SERVO_API", "M24 command received, but not implemented yet.");
             break;
         }
         case Gcode::M25:{
@@ -249,7 +248,12 @@ esp_err_t convert_servo_instructions(const Command& command){
             else{
                 ESP_LOGI("SERVO_API", "Buffer task notified successfully.");
             }
-            ESP_LOGI("SERVO_API", "M25 command received, but not implemented yet.");
+            break;
+        }
+        case Gcode::M505:{
+            // Handle M505 command
+            xQueueReset(h_queue_cmd_buffer); // Reset the command buffer queue
+            ESP_LOGI("SERVO_API", "Command buffer svuotato");
             break;
         }
         

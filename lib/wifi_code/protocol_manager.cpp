@@ -4,6 +4,8 @@
 #include <sstream>
 #include <string>
 #include "esp_log.h"
+#include <cstdlib> 
+#include <esp_err.h>
 
 static const char* TAG = "ProtocolManager";
 
@@ -56,9 +58,8 @@ void ProtocolManager::set_num_servos(uint8_t num_servos) //!HERE
     }
 }
 
-#include <cstdlib> 
 
-void ProtocolManager::handle_incoming(const std::string& line)
+esp_err_t ProtocolManager::handle_incoming(const std::string& line)
 {
     ESP_LOGI(TAG, "<- Computer: %s", line.c_str());
 
@@ -125,9 +126,15 @@ void ProtocolManager::handle_incoming(const std::string& line)
                 command_started = true;
                 previous_arg = "M25";
             }
+            else if (token == "M505"){
+                command.gcode = Gcode::M505;
+                current_gcode = Gcode::M505;
+                command_started = true;
+                previous_arg = "M505";
+            }
             else {
-                reply("ERROR unknown_command — expected G6, M222, M204, or M205");
-                return;
+                reply("ERROR unknown_command — expected G6, M222, M204, M205, M24, M25, M505");
+                return ESP_FAIL;
             }
         }
         else{
@@ -149,7 +156,7 @@ void ProtocolManager::handle_incoming(const std::string& line)
                     // Check number format (exception-free)
                     if (endptr == value.c_str() || *endptr != '\0') {
                         reply("ERROR invalid_format — expected numbers separated by spaces");
-                        return;
+                        return ESP_FAIL;
                     }
                     command.values.push_back(value2);
                     command.args.push_back(Args::N);
@@ -166,7 +173,7 @@ void ProtocolManager::handle_incoming(const std::string& line)
                         // Check number format (exception-free)
                         if (endptr == value.c_str() || *endptr != '\0') {
                             reply("ERROR invalid_format — expected numbers separated by spaces");
-                            return;
+                            return ESP_FAIL;
                         }
                         command.values.push_back(value2);
                         command.args.push_back(Args::P);
@@ -175,7 +182,7 @@ void ProtocolManager::handle_incoming(const std::string& line)
                     }
                     else{
                         reply("ERROR invalid_argument — expected P after N for G6 command");
-                        return;
+                        return ESP_FAIL;
                     }
                     
                 }
@@ -188,7 +195,7 @@ void ProtocolManager::handle_incoming(const std::string& line)
                     // Check number format (exception-free)
                     if (endptr == value.c_str() || *endptr != '\0') {
                         reply("ERROR invalid_format — expected numbers separated by spaces");
-                        return;
+                        return ESP_FAIL;
                     }
                     command.values.push_back(value2);
                     command.args.push_back(Args::S);
@@ -204,7 +211,7 @@ void ProtocolManager::handle_incoming(const std::string& line)
                     // Check number format (exception-free)
                     if (endptr == value.c_str() || *endptr != '\0') {
                         reply("ERROR invalid_format — expected numbers separated by spaces");
-                        return;
+                        return ESP_FAIL ;
                     }
                     command.values.push_back(value2);
                     command.args.push_back(Args::A);
@@ -220,7 +227,7 @@ void ProtocolManager::handle_incoming(const std::string& line)
                     // Check number format (exception-free)
                     if (endptr == value.c_str() || *endptr != '\0') {
                         reply("ERROR invalid_format — expected numbers separated by spaces");
-                        return;
+                        return ESP_FAIL;
                     }
                     command.values.push_back(value2);
                     command.args.push_back(Args::J);
@@ -229,7 +236,7 @@ void ProtocolManager::handle_incoming(const std::string& line)
                 }
                 else{ // in questo caso l'ordine di argomenti è errato
                     reply("ERROR invalid_format — unexpected argument for G6 command");
-                    return;
+                    return ESP_FAIL;
                 }
             }
             else if (
@@ -245,7 +252,7 @@ void ProtocolManager::handle_incoming(const std::string& line)
                 // Check number format (exception-free)
                 if (endptr == token.c_str() || *endptr != '\0') {
                     reply("ERROR invalid_format — expected numbers separated by spaces");
-                    return;
+                    return ESP_FAIL;
                 }
                 command.values.push_back(value);
                 command.args.push_back(Args::N); // argument placeholder
@@ -253,12 +260,13 @@ void ProtocolManager::handle_incoming(const std::string& line)
             }
             else if (
                 (current_gcode== Gcode::M24 && previous_arg == "M24")||
-                (current_gcode== Gcode::M25 && previous_arg == "M25")){
+                (current_gcode== Gcode::M25 && previous_arg == "M25")||
+                (current_gcode== Gcode::M505 && previous_arg == "M505")){
                 // placeholder
             }
             else{ // in questo caso gli argomenti sono errati
                 reply("ERROR invalid_format — unexpected argument for command");
-                return;
+                return ESP_FAIL;
             }
 
 
@@ -324,7 +332,7 @@ void ProtocolManager::handle_incoming(const std::string& line)
     // 1. Check if the string is not empty
     if (token_count == 0) {
         reply("ERROR empty_command — send values as: angle vel acc jerk ...");
-        return;
+        return ESP_FAIL;
     }
 
     // 2. Check if the values are coming in complete packets of four
@@ -347,4 +355,5 @@ void ProtocolManager::handle_incoming(const std::string& line)
     if (s_on_command) {
         s_on_command(command);
     }
+    return ESP_OK;
 }

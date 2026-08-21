@@ -25,33 +25,149 @@ esp_err_t init_cmd_logic(){
     return ris;
 }
 
-// Task: receive Msg* from the higher-level UART queue and translate into
-// servo controller commands by calling move_servo_speed()
-// this is needed beacause also the root has a servo
+esp_err_t test_protocol_parser() {
+    ProtocolManager::handle_incoming("M505");
+    esp_err_t result= ESP_OK;
+    if (ProtocolManager::handle_incoming("M24") != ESP_OK) {
+        ESP_LOGE("TEST", "Fallito a interpretare il comando M24.");
+        result = ESP_FAIL;
+    }
+    vTaskDelay(pdMS_TO_TICKS(2000));
+    if (ProtocolManager::handle_incoming("G6 N0 P90.0 S1.0 A2.0 J3.0 N1 P45.0 J1.5 N2 P45.0 J1.5 N3 P45.0 J1.5") != ESP_OK) {
+        ESP_LOGE("TEST", "Fallito a interpretare il comando G6 multiplo.");
+        result = ESP_FAIL;
+    }
+    vTaskDelay(pdMS_TO_TICKS(2000));
+    if (ProtocolManager::handle_incoming("G4 5000") != ESP_OK) {
+        ESP_LOGE("TEST", "Fallito a interpretare il comando G4.");
+        result = ESP_FAIL;
+    }
+    vTaskDelay(pdMS_TO_TICKS(2000));
+    if (ProtocolManager::handle_incoming("G6 N0 P0 S1.0 A2.0 J3.0") != ESP_OK) {
+        ESP_LOGE("TEST", "Fallito a interpretare il comando G6 singolo.");
+        result = ESP_FAIL;
+    }
+    vTaskDelay(pdMS_TO_TICKS(2000));
+    if (ProtocolManager::handle_incoming("M222 2.5") != ESP_OK) {
+        ESP_LOGE("TEST", "Fallito a interpretare il comando M222.");
+        result = ESP_FAIL;
+    }
+    vTaskDelay(pdMS_TO_TICKS(2000));
+    if (ProtocolManager::handle_incoming("M204 3.5") != ESP_OK) {
+        ESP_LOGE("TEST", "Fallito a interpretare il comando M204.");
+        result = ESP_FAIL;
+    }
+    vTaskDelay(pdMS_TO_TICKS(2000));
+    if (ProtocolManager::handle_incoming("M205 4.5") != ESP_OK) {
+        ESP_LOGE("TEST", "Fallito a interpretare il comando M205.");
+        result = ESP_FAIL;
+    }
+    vTaskDelay(pdMS_TO_TICKS(2000));
+    if (ProtocolManager::handle_incoming("M505") != ESP_OK) {
+        ESP_LOGE("TEST", "Fallito a interpretare il comando M505.");
+        result = ESP_FAIL;
+    }
+    return result;
+}
 
-// void task_execute_servo(void *arg) {
-//     (void)arg;
-//     extern QueueHandle_t h_queue_servo; // declared in utils_uart_comms.h / GLOBAL_VARS.cpp
+esp_err_t test_commands_execution(){
+    ProtocolManager::handle_incoming("M505");
+    esp_err_t result=ESP_OK;
+    //test comando G6
+    ProtocolManager::handle_incoming("G6 N0 P90.0");
+    ProtocolManager::handle_incoming("M24");
+    vTaskDelay(pdMS_TO_TICKS(4000));
+    if (abs(servo_data.current_pos.load()-90.0f*(M_PI/180.0f))>0.1f){
+        ESP_LOGE("TEST", "Fallito a eseguire il comando G6 N0 P90.0");
+        result=ESP_FAIL;
+    }
+    //test comando G6 per un servo diverso
+    ProtocolManager::handle_incoming("G6 N1 P90.0");
+    ProtocolManager::handle_incoming("M24");
+    vTaskDelay(pdMS_TO_TICKS(4000));
+    if (ack_to_receive.load() != 0){
+        ESP_LOGE("TEST", "Fallito a ricevere l'ack del comando G6 N1 P90.0. ack_to_receive: %d", ack_to_receive.load());
+        result=ESP_FAIL;
+    }
+    //test comando G4
+    ProtocolManager::handle_incoming("G4 5000");
+    ProtocolManager::handle_incoming("G6 N0 P0.0");
+    ProtocolManager::handle_incoming("M24");
+    vTaskDelay(pdMS_TO_TICKS(1000));
+    if (abs(servo_data.current_pos.load()-90.0f*(M_PI/180.0f))>0.1f){
+        ESP_LOGE("TEST", "Fallito a eseguire il comando G4 5000");
+        result=ESP_FAIL;
+    }
+    vTaskDelay(pdMS_TO_TICKS(5000));
+    //test comando M505
+    ProtocolManager::handle_incoming("M222 1.5");
+    ProtocolManager::handle_incoming("M505");
+    Msg* msg = nullptr;
+    if (xQueueReceive(h_queue_cmd_buffer, &msg, 0) == pdTRUE) {
+        ESP_LOGE("TEST", "Ricevuto un comando dalla coda dopo M505, il buffer non è stato svuotato.");
+        result=ESP_FAIL;
+    }
+    //test comando M24
+    ProtocolManager::handle_incoming("G4 3000");
+    ProtocolManager::handle_incoming("M24");
+    //status è esposto con la compilazione condizionale
+    if (status.load() != true){
+        ESP_LOGE("TEST", "Fallito a eseguire il comando M24, status: %d", status.load());
+        result=ESP_FAIL;
+    }
+    vTaskDelay(pdMS_TO_TICKS(4000));
+    //test comando M25
+    ProtocolManager::handle_incoming("G4 1000");
+    ProtocolManager::handle_incoming("G4 1000");
+    ProtocolManager::handle_incoming("M24");
+    vTaskDelay(pdMS_TO_TICKS(50));
+    ProtocolManager::handle_incoming("M25");
+    vTaskDelay(pdMS_TO_TICKS(1000));
+    if (manual_pause.load() != true){
+        ESP_LOGE("TEST", "Fallito a eseguire il comando M25, manual_pause: %d", manual_pause.load());
+        result=ESP_FAIL;
+    }
+    return result;
 
-//     while (1) {
-//         Msg *msg = nullptr;
-//         if (xQueueReceive(h_queue_servo, &msg, portMAX_DELAY) == pdTRUE) {
-//             ESP_LOGI("EXEC_SERVO", "Received servo message, speed=%.3f, acc=%.3f, jerk=%.3f", msg->payload.payload_servo.speed, msg->payload.payload_servo.acceleration, msg->payload.payload_servo.jerk);
-//             if (msg) {
-//                 float radians = msg->payload.payload_servo.radians;
-//                 float speed = msg->payload.payload_servo.speed;
-//                 float acc = msg->payload.payload_servo.acceleration;
-//                 float jerk = msg->payload.payload_servo.jerk;
-//                 esp_err_t err = move_servo_speed(radians, speed, acc, jerk, msg->payload.payload_servo.relative);
-//                 if (err != ESP_OK) {
-//                     ESP_LOGW("EXEC_SERVO", "move_servo_speed failed: %d", err);
-//                 }
-//                 delete msg; // free message allocated by UART layer
-//             }
-//         }
-//         vTaskDelay(pdMS_TO_TICKS(10)); // piccola attesa per evitare che venga triggerata la WDT
-//     }
-// }
+}
+
+esp_err_t test_commands_sequence(){
+    ProtocolManager::handle_incoming("M505");
+    vTaskDelay(pdMS_TO_TICKS(20));
+    ProtocolManager::handle_incoming("G6 N0 P0.0 N1 P0.0 N2 P0.0 N3 P0.0");
+    vTaskDelay(pdMS_TO_TICKS(20));
+    ProtocolManager::handle_incoming("G6 N0 P-139 N1 P-139 N2 P-139 N3 P-139");
+    vTaskDelay(pdMS_TO_TICKS(20));
+    ProtocolManager::handle_incoming("G6 N0 P-139 N1 P-60 N2 P0 N3 P0");
+    vTaskDelay(pdMS_TO_TICKS(20));
+    ProtocolManager::handle_incoming("G6 N0 P-139 N1 P-60 N2 P-60 N3 P-139");
+    vTaskDelay(pdMS_TO_TICKS(20));
+    ProtocolManager::handle_incoming("M24");
+    vTaskDelay(pdMS_TO_TICKS(30000));
+    if (ack_to_receive.load() != 0){
+        ESP_LOGE("TEST", "Fallito a eseguire la sequenza di comandi, ack_to_receive: %d", ack_to_receive.load());
+        return ESP_FAIL;
+    }
+    return ESP_OK;
+
+}
+
+esp_err_t test_buffer_overload(){
+    ProtocolManager::handle_incoming("M505");
+    for (int i = 0; i < 198; i++) {
+        ProtocolManager::handle_incoming("G6 N0 P0 S1.0 A2.0 J3.0");
+        vTaskDelay(pdMS_TO_TICKS(20));
+    }
+    Payload p{};
+    Msg* msg = create_msg(SELF_ID, SELF_ID, type_servo, p);
+    if (xQueueSend(h_queue_cmd_buffer, &msg, 0) != pdTRUE) {
+        ESP_LOGE("TEST", "Fallito a eseguire il test di buffer overload, la coda non è piena dopo 198 comandi.");
+        ProtocolManager::handle_incoming("M505");
+        return ESP_FAIL;
+    }
+    ProtocolManager::handle_incoming("M505");
+    return ESP_OK;
+}
 
 
 extern "C" void app_main() {
@@ -68,48 +184,9 @@ extern "C" void app_main() {
         return; // Exit if initialization fails
     }
     servo_init();
-    // create and start the task that listens for servo messages coming from
-    // the UART/protocol layer and forwards movement commands to the
-    // servo controller (move_servo_speed)
-    // xTaskCreate(
-    //     task_execute_servo,
-    //     "ExecServoTask",
-    //     3072,
-    //     NULL,
-    //     2,
-    //     NULL
-    // );
-    vTaskDelay(pdMS_TO_TICKS(2000)); // Wait for Wi-Fi to initialize
-    ProtocolManager::handle_incoming("G6 N0 P90.0 S1.0 A2.0 J3.0 N1 P45.0 J1.5 N2 P45.0 J1.5 N3 P45.0 J1.5");
-    vTaskDelay(pdMS_TO_TICKS(2000));
-    ProtocolManager::handle_incoming("G4 5000");
-    vTaskDelay(pdMS_TO_TICKS(2000));
-    ProtocolManager::handle_incoming("G6 N0 P0 S1.0 A2.0 J3.0");
-    vTaskDelay(pdMS_TO_TICKS(2000));
-    // ProtocolManager::handle_incoming("G6 N0 P90.0 S1.0 A2.0 J3.0 N1 P45.0 J1.5");
-    // vTaskDelay(pdMS_TO_TICKS(2000));
-    ProtocolManager::handle_incoming("M222 2.5");
-    vTaskDelay(pdMS_TO_TICKS(2000));
-    ProtocolManager::handle_incoming("M204 3.5");
-    vTaskDelay(pdMS_TO_TICKS(2000));
-    ProtocolManager::handle_incoming("M205 4.5");
-    vTaskDelay(pdMS_TO_TICKS(2000));
-    ProtocolManager::handle_incoming("M24");
-    vTaskDelay(pdMS_TO_TICKS(2000));
-    // ProtocolManager::handle_incoming("M25");
-    // vTaskDelay(pdMS_TO_TICKS(2000));
-    // for (int i = 0; i < 98; i++) {
-    //     ProtocolManager::handle_incoming("G6 N0 P0 S1.0 A2.0 J3.0");
-    //     vTaskDelay(pdMS_TO_TICKS(10));
-    // }
-    // ProtocolManager::handle_incoming("G6 N0 P90 S1.0 A2.0 J3.0");
-    // ProtocolManager::handle_incoming("M24");
-    // ESP_LOGI("TEST", "debug log");
-    // if (xTaskNotify(buffer_task_handle, 0x1, eSetValueWithOverwrite) != pdPASS) {
-    //     ESP_LOGE("TEST", "Failed to notify buffer task.");
-    // }
-    // else{
-    //     ESP_LOGI("TEST", "Buffer task notified successfully.");
-    // }
-
+    test_protocol_parser();
+    test_commands_execution();
+    test_commands_sequence();
+    test_buffer_overload();
+    ESP_LOGI("TEST", "All tests completed.");
 }

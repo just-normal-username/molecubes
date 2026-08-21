@@ -11,4 +11,8 @@ extern TaskHandle_t buffer_task_handle; // Handle for the buffer task
 
 extern std::atomic<bool> manual_pause; // Flag che indica lo start/stop manuale
 
+#if defined(TEST_PROTOCOL_MANAGER)
+    extern std::atomic<bool> status; // Flag che indica lo stato della task. true = la task processa i comandi, false = la task non processa i comandi
+#endif
+
 esp_err_t init_cmd_buffer();

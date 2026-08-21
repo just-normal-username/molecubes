@@ -291,8 +291,7 @@ def main() -> None:
                     print("- M222 [nuova velocità di default(rad/s)]")
                     print("- M204 [nuova accelerazione di default(rad/s^2)]")
                     print("- M205 [nuovo jerk di default(rad/s^3)]")
-                    print("    Nota: questi comandi avranno effetto su tutta la sequenza che viene eseguita, anche se" \
-                    "si trovano in mezzo ad altri comandi. Sono intesi per modificare i valori di default una volta sola, non" \
+                    print("    Nota: Questi comandi sono intesi per modificare i valori di default una volta sola, non" \
                     "per cambiare i parametri per ogni comando specifico")
                     print("- G4 [attesa in millisecondi]")
                     print("- M24")
@@ -300,6 +299,8 @@ def main() -> None:
                     print("- M25")
                     print("    Stop, interrompe la sequenza in esecuzione. Nota una volta che la sequenza termina bisogna "\
                     "inviare nuovamente il comando M24 per eseguire una nuova sequenza")
+                    print("- M505")
+                    print("    Svuota il buffer dei comandi in esecuzione.")
                     print("- q: torna al menù precedente")
                     while True:
                         raw = input("Inserisci il comando da caricare > ").strip()
