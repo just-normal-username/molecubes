@@ -106,7 +106,7 @@ void buffer_task(void *pvParameters) {
 
 esp_err_t init_cmd_buffer() {
     // la dimensione è 2 per sicurezza
-    h_queue_cmd_buffer = xQueueCreate(100, sizeof(Msg*)); //! crea una coda con spazio per massimo 200 puntatori a Msg
+    h_queue_cmd_buffer = xQueueCreate(200, sizeof(Msg*)); //! crea una coda con spazio per massimo 200 puntatori a Msg
     ack_to_receive.store(0); // inizializza il contatore degli ack da ricevere a 0
     xTaskCreate(buffer_task, "buffer_task", 4096, NULL, 5, &buffer_task_handle);
     if (h_queue_cmd_buffer == NULL) {

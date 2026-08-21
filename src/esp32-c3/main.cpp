@@ -9,15 +9,12 @@
 void init_cube();
 void task_execute_servo(void *arg);
 
-struct {
-    uint8_t mac[6];
-} molecube_data;
 
 void init_cube() {
-    uint8_t mac[6];
-    esp_read_mac(mac, ESP_MAC_WIFI_STA);
-    ESP_LOGI("CUBE_INIT", "MAC Address: %02X:%02X:%02X:%02X:%02X:%02X", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
-    memcpy(molecube_data.mac, mac, 6); //copying the mac address byte to byte to the molecube_data struct
+    uint8_t mac_appo[6];
+    esp_read_mac(mac_appo, ESP_MAC_WIFI_STA);
+    ESP_LOGI("CUBE_INIT", "MAC Address: %02X:%02X:%02X:%02X:%02X:%02X", mac_appo[0], mac_appo[1], mac_appo[2], mac_appo[3], mac_appo[4], mac_appo[5]);
+    memcpy(mac, mac_appo, 6); //copying the mac address byte to byte to the molecube_data struct
 }
 
 // //inizializza la logica del wifi, uart e del buffer dei comandi
@@ -65,8 +62,8 @@ extern "C" void app_main() {
     //initializing wifi, uart comms, cube data (mac address) and servo controller
     //init_wifi();
     // init_cmd_logic();
-    init_uart_comms();
     init_cube();
+    init_uart_comms();
     servo_init();
 
     // create and start the task that listens for servo messages coming from

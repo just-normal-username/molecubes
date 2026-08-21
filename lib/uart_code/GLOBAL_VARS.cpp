@@ -12,7 +12,7 @@
 #include "utils_uart_comms.h"
 
 
-
+uint8_t mac[6];
 int MASTER_ID = UNKNOWN_ID;
 int SELF_ID = UNKNOWN_ID;
 int SLAVE_ID = UNKNOWN_ID;
@@ -20,7 +20,7 @@ int SLAVE_ID = UNKNOWN_ID;
 bool BLINK_ON_RECEIVE_MSG = false;
 bool BLINK_ON_SEND_MSG = false;
 bool PRINT_RECEIVED_BYTES = false;
-bool SHOW_UART_COMMS_LOGS = true;
+bool SHOW_UART_COMMS_LOGS = false;
 
 // TaskHandle_t h_task_blink_led_once;
 //code x tutti i tipi di comandi diversi

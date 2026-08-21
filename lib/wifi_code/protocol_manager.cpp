@@ -47,12 +47,13 @@ void ProtocolManager::init(uint8_t num_servos, ServoCommandCallback on_servo_com
 
 void ProtocolManager::set_num_servos(uint8_t num_servos) //!HERE
 {
-    
-    s_num_servos = num_servos;
+    if (num_servos!=s_num_servos){
+        s_num_servos = num_servos;
 
-    // Notify the computer immediately about the updated number of connected peripherals
-    reply("SERVOS " + std::to_string(s_num_servos));
-    ESP_LOGI(TAG, "Periferiche collegate: %d", s_num_servos);
+        // Notify the computer immediately about the updated number of connected peripherals
+        reply("SERVOS " + std::to_string(s_num_servos));
+        ESP_LOGI(TAG, "Periferiche collegate: %d", s_num_servos);
+    }
 }
 
 #include <cstdlib> 

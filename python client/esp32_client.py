@@ -318,8 +318,10 @@ def main() -> None:
                                     cmd = cmd.strip()
                                     if cmd and not cmd.startswith("#"):  # Ignora righe vuote e commenti
                                         message = cmd + "\n"
+                                        ack_event.clear()  # Resetta l'evento di ack
                                         sock.sendall(message.encode("utf-8"))
-                                        time.sleep(0.1)  # Piccola pausa tra i comandi
+                                        ack_event.wait(timeout=5)  # attende l'ack prima di inviare il nuovo comando
+                                        time.sleep(0.3) # attesa per evitare di triggerare il WDT
                         except FileNotFoundError:
                             print(f"[error] File non trovato: {file_path}")
                             continue

@@ -1,4 +1,5 @@
 #include "utils_uart_comms.h"
+#include <esp_log.h>
 
 //* _______________________________________ MAIN e TEST
 // void test_task(void* info){
@@ -39,7 +40,28 @@ void init_uart_comms(){
   
   //todo for test  
   //!!!ID!!!
-  SELF_ID = 0; 
+  string mac_str = "";
+  for (int i = 0; i < 6; ++i) {
+    char buf[3];
+    sprintf(buf, "%02X", mac[i]);
+    mac_str += buf;
+  }
+  if (mac_str == "0C4EA0653DD0"){
+    SELF_ID = 0;
+  }
+  else if (mac_str == "0C4EA0652684"){
+    SELF_ID = 1;
+  }
+  else if (mac_str == "0C4EA064B084"){
+    SELF_ID = 2;
+  }
+  else if (mac_str == "0C4EA0653E18"){
+    SELF_ID = 3;
+  }
+  else{
+    ESP_LOGI("MAC","MAC Address not recognized: %s\n", mac_str.c_str());
+    SELF_ID = -1; // Unknown ID
+  }
 
   //*LOGS
   SHOW_UART_COMMS_LOGS = 1;

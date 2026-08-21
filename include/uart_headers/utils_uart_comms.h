@@ -54,6 +54,7 @@ typedef struct {
 
 
 //* GLOBAL_VARS.CPP
+extern uint8_t mac[6];
 extern int MASTER_ID; 
 extern int SELF_ID;
 extern int SLAVE_ID;
