@@ -64,7 +64,7 @@ void init_uart_comms(){
   }
 
   //*LOGS
-  SHOW_UART_COMMS_LOGS = 1;
+  SHOW_UART_COMMS_LOGS = false;
   bool LOOP_PRINT_IDS_ARRAY = 0;
 
   //*TEST

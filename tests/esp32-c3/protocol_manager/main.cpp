@@ -77,7 +77,7 @@ esp_err_t test_commands_execution(){
     ProtocolManager::handle_incoming("G6 N0 P90.0");
     ProtocolManager::handle_incoming("M24");
     vTaskDelay(pdMS_TO_TICKS(4000));
-    if (abs(servo_data.current_pos.load()-90.0f*(M_PI/180.0f))>0.1f){
+    if (abs(servo_data.current_pos.load()-90.0f*(M_PI/180.0f))>0.1f || ack_to_receive.load() != 0){
         ESP_LOGE("TEST", "Fallito a eseguire il comando G6 N0 P90.0");
         result=ESP_FAIL;
     }
@@ -91,19 +91,19 @@ esp_err_t test_commands_execution(){
     }
     //test comando G4
     ProtocolManager::handle_incoming("G4 5000");
-    ProtocolManager::handle_incoming("G6 N0 P0.0");
+    ProtocolManager::handle_incoming("G6 N0 P0.0"); //todo problema non fa la backlash compensation e non invia l'ack
     ProtocolManager::handle_incoming("M24");
     vTaskDelay(pdMS_TO_TICKS(1000));
     if (abs(servo_data.current_pos.load()-90.0f*(M_PI/180.0f))>0.1f){
         ESP_LOGE("TEST", "Fallito a eseguire il comando G4 5000");
         result=ESP_FAIL;
     }
-    vTaskDelay(pdMS_TO_TICKS(5000));
+    vTaskDelay(pdMS_TO_TICKS(6000));
     //test comando M505
     ProtocolManager::handle_incoming("M222 1.5");
     ProtocolManager::handle_incoming("M505");
     Msg* msg = nullptr;
-    if (xQueueReceive(h_queue_cmd_buffer, &msg, 0) == pdTRUE) {
+    if (xQueueReceive(h_queue_cmd_buffer, &msg, 0) == pdTRUE|| ack_to_receive.load() != 0) {
         ESP_LOGE("TEST", "Ricevuto un comando dalla coda dopo M505, il buffer non è stato svuotato.");
         result=ESP_FAIL;
     }
@@ -111,7 +111,7 @@ esp_err_t test_commands_execution(){
     ProtocolManager::handle_incoming("G4 3000");
     ProtocolManager::handle_incoming("M24");
     //status è esposto con la compilazione condizionale
-    if (status.load() != true){
+    if (status.load() != true|| ack_to_receive.load() != 0){
         ESP_LOGE("TEST", "Fallito a eseguire il comando M24, status: %d", status.load());
         result=ESP_FAIL;
     }
@@ -123,7 +123,7 @@ esp_err_t test_commands_execution(){
     vTaskDelay(pdMS_TO_TICKS(50));
     ProtocolManager::handle_incoming("M25");
     vTaskDelay(pdMS_TO_TICKS(1000));
-    if (manual_pause.load() != true){
+    if (manual_pause.load() != true|| ack_to_receive.load() != 0){
         ESP_LOGE("TEST", "Fallito a eseguire il comando M25, manual_pause: %d", manual_pause.load());
         result=ESP_FAIL;
     }
@@ -184,9 +184,17 @@ extern "C" void app_main() {
         return; // Exit if initialization fails
     }
     servo_init();
-    test_protocol_parser();
-    test_commands_execution();
-    test_commands_sequence();
-    test_buffer_overload();
-    ESP_LOGI("TEST", "All tests completed.");
+    esp_err_t result=ESP_OK;
+    result=test_protocol_parser()!=ESP_OK ? ESP_FAIL : result;
+    vTaskDelay(pdMS_TO_TICKS(1000)); // aspetta un secondo per iniziare il test successivo
+    result=test_commands_execution()!=ESP_OK ? ESP_FAIL : result;
+    vTaskDelay(pdMS_TO_TICKS(1000)); // aspetta un secondo per iniziare il test successivo
+    result=test_commands_sequence()!=ESP_OK ? ESP_FAIL : result;
+    vTaskDelay(pdMS_TO_TICKS(1000)); // aspetta un secondo per iniziare il test successivo
+    result=test_buffer_overload()!=ESP_OK ? ESP_FAIL : result;
+    if (result==ESP_OK){
+        ESP_LOGI("TEST", "Tutti i test completati con successo.");
+    }else{
+        ESP_LOGE("TEST", "Alcuni test sono falliti");
+    }
 }

@@ -256,11 +256,16 @@ void send_movement_ack(){
             p.payload_servo.jerk=30.0f;
             p.payload_servo.send_ack=true;
             Msg* backlash_cmd=create_msg(SELF_ID, SELF_ID, type_servo, p);
+            ESP_LOGI("Servo", "Backlash compensation: moving back to target=%.4f", cmd.target_rad);
             xQueueSend(h_queue_servo, &backlash_cmd, 0); // we can send the command directly to the queue, the FSM will take care of executing it immediately
         }
         else{
             if (cmd.send_ack){
+                ESP_LOGI("Servo", "Sending movement ack");
                 send_movement_ack();
+            }
+            else{
+                ESP_LOGI("Servo", "No movement ack requested");
             }
         }
     }
