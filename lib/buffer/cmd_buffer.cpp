@@ -93,6 +93,7 @@ void buffer_task(void *pvParameters) {
                     else{
                         // settando stato di stop, in questo modo la task resta in attesa
                         status.store(false);
+                        send_sequence_ack(); //invia l'ack di fine sequenza
                     }
                 }
                 else{

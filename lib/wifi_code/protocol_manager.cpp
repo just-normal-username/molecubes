@@ -39,6 +39,10 @@ void reply(const std::string& msg)
 // Public API
 // ---------------------------------------------------------------------------
 
+void send_sequence_ack() {
+    reply("Sequenza di comandi eseguita correttamente");
+}
+
 void ProtocolManager::init(uint8_t num_servos, ServoCommandCallback on_servo_command)
 {
     s_on_command = on_servo_command;

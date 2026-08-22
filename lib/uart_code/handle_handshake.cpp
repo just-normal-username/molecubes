@@ -37,8 +37,8 @@ void send_report_to_root(){
   send_msg_to_master(m);
 }
 
-const int PING_SLAVE_WAIT_FOR_ACK_MAX_DELAY = 1000; //! fix: do alle schedine 5s per rispondere ad un hanshake invece che 2s
-const int PING_MASTER_WAIT_FOR_ACK_MAX_DELAY = 1000;
+const int PING_SLAVE_WAIT_FOR_ACK_MAX_DELAY = 1500; //! fix: do alle schedine 5s per rispondere ad un hanshake invece che 2s
+const int PING_MASTER_WAIT_FOR_ACK_MAX_DELAY = 1500;
 
 const int PING_SLAVE_SEND_NEW_HANDSHAKE_DELAY = 1000;
 const int PING_MASTER_SEND_NEW_HANDSHAKE_DELAY = 1000;

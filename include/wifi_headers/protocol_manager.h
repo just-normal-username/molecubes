@@ -34,6 +34,7 @@ typedef struct{
 // Contiene gli angoli dei servomotori (1-5 valori, range 0-270).
 using ServoCommandCallback =  std::function<void(const Command& command)>;
 void reply(const std::string& msg);
+void send_sequence_ack();
 class ProtocolManager {
 public:
     /**
