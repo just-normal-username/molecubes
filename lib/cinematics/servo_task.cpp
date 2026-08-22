@@ -233,6 +233,7 @@ void send_movement_ack(){
                 // if the new position signal is different from the previous one less than the deadzone
                 // the servo will drop that command and keep the previous one
                 if (fabsf(pos - target) > servo_deadzone){
+                    ESP_LOGI("Servo", "Setting servo position: pos=%.4f, target=%.4f, vel=%.4f, acc=%.4f, backlash_compensation=%s", pos, target, vel, acc, backlash_compensation ? "true" : "false");
                     set_servo_pos(pos);
                 }
                 else{
@@ -241,14 +242,12 @@ void send_movement_ack(){
                 if (!done) vTaskDelayUntil(&xLastWake, xFrequency);
             }
         } while (restart);
-        set_servo_pos(cmd.target_rad); // ensure we end up in the exact target position (corrections for numerical errors)
-        // updating final servo state with speed and acc = 0
-        servo_data.current_speed.store(0.0f);
-        servo_data.current_acc.store(0.0f);
-        servo_data.moving.store(false);
+        ESP_LOGI("Servo", "Setting servo position: target=%.4f, backlash_compensation=%s", cmd.target_rad, backlash_compensation ? "true" : "false");
+        ESP_LOGI("Servo", "backlash_compensation: %d", backlash_compensation);
         if (backlash_compensation){
+            ESP_LOGI("Servo", "Backlash compensation: moving to intermediate target=%.4f", cmd.target_rad - backlash);
             // if we have done a backlash compensation, we need to move the servo back to the original target position to compensate for the backlash
-            vTaskDelay(pdMS_TO_TICKS(500)); 
+            //vTaskDelay(pdMS_TO_TICKS(500)); 
             Payload p={};
             p.payload_servo.radians=cmd.target_rad;
             p.payload_servo.speed=0.5f;
@@ -260,6 +259,11 @@ void send_movement_ack(){
             xQueueSend(h_queue_servo, &backlash_cmd, 0); // we can send the command directly to the queue, the FSM will take care of executing it immediately
         }
         else{
+            set_servo_pos(cmd.target_rad); // ensure we end up in the exact target position (corrections for numerical errors)
+            // updating final servo state with speed and acc = 0
+            servo_data.current_speed.store(0.0f);
+            servo_data.current_acc.store(0.0f);
+            servo_data.moving.store(false);
             if (cmd.send_ack){
                 ESP_LOGI("Servo", "Sending movement ack");
                 send_movement_ack();

@@ -98,7 +98,7 @@ esp_err_t test_commands_execution(){
         ESP_LOGE("TEST", "Fallito a eseguire il comando G4 5000");
         result=ESP_FAIL;
     }
-    vTaskDelay(pdMS_TO_TICKS(6000));
+    vTaskDelay(pdMS_TO_TICKS(8000));
     //test comando M505
     ProtocolManager::handle_incoming("M222 1.5");
     ProtocolManager::handle_incoming("M505");
