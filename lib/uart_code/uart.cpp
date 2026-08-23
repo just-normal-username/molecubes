@@ -245,7 +245,7 @@ void task_send_uart(void *arg){
 
 
 
-Msg* create_msg(int sender_id, int target_id, MsgType type, Payload payload){
+Msg* create_msg(module_id_t sender_id, module_id_t target_id, MsgType type, Payload payload){
   Msg* msg = allocate_msg();
   // ensure header/footer/ids are set
   msg->header = HEADER_BYTE;

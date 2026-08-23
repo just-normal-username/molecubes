@@ -24,7 +24,7 @@ std::atomic<bool> manual_pause=true; // Flag che indica lo start/stop manuale
 
 void buffer_task(void *pvParameters) {
     bool value;
-    int group_number=1;
+    uint8_t group_number=1;
     while (1) {
         vTaskDelay(pdMS_TO_TICKS(10)); //necessaria per evitare che venga triggerato il WDT su burst di comandi
         if (status.load()==false){

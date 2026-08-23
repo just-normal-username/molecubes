@@ -17,6 +17,7 @@
 
 //mine
 #include "msg_structs.h"
+#include "id_type.h"
 
 using namespace std;
 
@@ -47,6 +48,7 @@ using namespace std;
 #define STR_PROVA "messaggio_corretto"
 
 
+
 typedef struct {
   uart_port_t select_uart; 
   QueueHandle_t select_queue;
@@ -55,9 +57,9 @@ typedef struct {
 
 //* GLOBAL_VARS.CPP
 extern uint8_t mac[6];
-extern int MASTER_ID; 
-extern int SELF_ID;
-extern int SLAVE_ID;
+extern module_id_t MASTER_ID; 
+extern module_id_t SELF_ID;
+extern module_id_t SLAVE_ID;
 
 extern bool BLINK_ON_RECEIVE_MSG; 
 extern bool BLINK_ON_SEND_MSG;
@@ -88,23 +90,23 @@ void init_uart_comms();
 //* LED.CPP
 void toggle_led(bool s);
 void init_led();
-void wake_task_blink_led_once(int DELAY = -1);
-void resume_loop_blink(int DELAY = -1);
+void wake_task_blink_led_once(uint32_t DELAY = -1);
+void resume_loop_blink(uint32_t DELAY = -1);
 void suspend_loop_blink();
-void set_loop_blink_delay(int DELAY);
+void set_loop_blink_delay(uint32_t DELAY);
 
 
 
 //* DEBUG_PRINT.CPP
 void print_info_uart_struct(InfoUART* info);
-const char* get_role_name(int role);
+const char* get_role_name(int role); //todo che tipo di int?
 void print_msg_struct(Msg* msg);
 
 
 //* UART.CPP
 void sort_new_msg(Msg *msg);
 void task_receive_uart(void *arg);
-Msg* create_msg(int sender_id, int target_id, MsgType type, Payload payload);
+Msg* create_msg(module_id_t sender_id, module_id_t target_id, MsgType type, Payload payload);
 // allocation helpers for Msg objects (centralize new/delete to detect double-frees)
 Msg* allocate_msg();
 void free_msg(Msg* msg);

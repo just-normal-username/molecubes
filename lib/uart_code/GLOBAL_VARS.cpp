@@ -13,9 +13,9 @@
 
 
 uint8_t mac[6];
-int MASTER_ID = UNKNOWN_ID;
-int SELF_ID = UNKNOWN_ID;
-int SLAVE_ID = UNKNOWN_ID;
+module_id_t MASTER_ID = UNKNOWN_ID;
+module_id_t SELF_ID = UNKNOWN_ID;
+module_id_t SLAVE_ID = UNKNOWN_ID;
 
 bool BLINK_ON_RECEIVE_MSG = false;
 bool BLINK_ON_SEND_MSG = false;

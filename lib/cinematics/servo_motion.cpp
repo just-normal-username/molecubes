@@ -14,9 +14,9 @@ float decel_distance_sim(float v_init, float acc_init, float a_max, float j_max,
     // distance covered so far
     float x = 0.0f;
     // capping the number of iterations to avoid infinite loops
-    const int max_iters = 20000;
+    const uint32_t max_iters = 20000;
     //interrupting the simulation if the velocity is very low
-    for (int i = 0; i < max_iters && v > 1e-6f; ++i) {
+    for (uint32_t i = 0; i < max_iters && v > 1e-6f; ++i) {
         //target acceleration is the maximum allowed acceleration but is negative because we want to decelerate
         const float target_a = -a_max;
         // if the target acceleration is already reached, we don't need to apply jerk

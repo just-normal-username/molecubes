@@ -67,7 +67,7 @@ void task_ping_slave(void* info){ // mando MtS a slave
     TIMEOUT - NO RESPONSE
     Even if it doesnt have a response it knows not to delete the new slave
     */
-    int SLAVE_ID_WHEN_I_SENT_THE_MESSAGE = SLAVE_ID; 
+    module_id_t SLAVE_ID_WHEN_I_SENT_THE_MESSAGE = SLAVE_ID; 
     send_msg_to_slave(msg);
     
     ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(PING_SLAVE_WAIT_FOR_ACK_MAX_DELAY)); //!NOTIFY
@@ -103,7 +103,7 @@ void task_ping_master(void* info){
     Msg* msg = create_msg(SELF_ID, UNKNOWN_ID, type_handshake, p); 
 
     received_StM_ack = false; 
-    int MASTER_ID_WHEN_I_SENT_THE_MESSAGE = MASTER_ID;
+    module_id_t MASTER_ID_WHEN_I_SENT_THE_MESSAGE = MASTER_ID;
     send_msg_to_master(msg);
 
     ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(PING_MASTER_WAIT_FOR_ACK_MAX_DELAY)); //!NOTIFY

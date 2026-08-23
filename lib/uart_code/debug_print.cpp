@@ -65,7 +65,7 @@ void print_msg_struct(Msg* msg){
 
     case type_g4:
       printf("Payload (COMMAND_01)\n");
-      printf("millis: %d\n", msg->payload.payload_g4.millis);
+      printf("millis: %ld\n", msg->payload.payload_g4.millis);
       break;
 
     case type_command_02:

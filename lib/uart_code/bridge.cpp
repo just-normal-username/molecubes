@@ -18,7 +18,7 @@ float default_speed = 1.0f;
 float default_acc = 2.0f;
 float default_jerk = 5.0f;
 
-esp_err_t create_and_buffer_msg(int sender_id, int target_id, Payload& p){
+esp_err_t create_and_buffer_msg(module_id_t sender_id, module_id_t target_id, Payload& p){
     // se la posizione del servo non è valida e quindi target_id è -1 viene ignorato il messaggio
     if (target_id != -1){
         Msg* msg = create_msg(sender_id, target_id, type_servo, p);
@@ -59,7 +59,7 @@ esp_err_t convert_servo_instructions(const Command& command){
     switch(command.gcode){
         case Gcode::G6:{
             // Handle G6 command specifics
-            int target_id=0;
+            uint8_t target_id=0;
             bool relative=false; // todo da implementare nel payload
             // Value-initialize the payload to avoid leaking uninitialized stack bytes
             if (command.args[0]==R){
@@ -303,7 +303,7 @@ esp_err_t convert_servo_instructions(const Command& command){
 
 
 //*BRIDGE ???
-void send_servo_movement_ack_to_root(int my_id, float radians){ //todo viene chiamata?
+void send_servo_movement_ack_to_root(module_id_t my_id, float radians){ //todo viene chiamata?
     // Ensure payload is zero-initialized to avoid garbage bytes
     Payload p{};
     p.payload_servo.radians = radians;

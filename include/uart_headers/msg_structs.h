@@ -3,13 +3,14 @@
 #include <stdint.h>      // Per uint8_t, uint32_t
 #include <stdbool.h>     // Per il tipo bool
 #include "driver/uart.h" // Per uart_read_bytes e le funzioni ESP-IDF
+#include "id_type.h"
 
 
 //*PAYLOADS DEFINITIONS
 
 //todo just for mockup
 typedef struct{
-    int millis;
+    uint32_t millis;
 }PayloadG4;
 
 typedef struct{
@@ -29,10 +30,10 @@ typedef struct{
 } PayloadHandshake;
 
 
-typedef struct{
-    int my_slave_id;
-    int my_id;
-    int my_master_id;
+typedef struct{ //max value: 127
+    module_id_t my_slave_id;
+    module_id_t my_id;
+    module_id_t my_master_id;
 }PayloadReport;
 
 
@@ -46,7 +47,7 @@ typedef struct{
 }PayloadServo;
 
 typedef struct{
-    int sender_id;
+    module_id_t sender_id;
 }PayloadServoAck;
 
 typedef struct{
@@ -55,8 +56,8 @@ typedef struct{
     float curr_acc;
 }PayloadCinematicUpdate;
 
-typedef struct{
-    int group_number;
+typedef struct{ //massimo 255 messaggi
+    uint8_t group_number;
 } PayloadGroup;
 
 
@@ -86,8 +87,8 @@ typedef enum{
 }MsgType;
 typedef struct __attribute__((packed)){
     uint8_t header;
-    int sender_id;
-    int target_id;
+    module_id_t sender_id;
+    module_id_t target_id;
     MsgType type;
 
     Payload payload;

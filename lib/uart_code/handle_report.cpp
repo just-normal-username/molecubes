@@ -55,9 +55,9 @@ void compute_ids_array(){
     }
     is_node_already_in_ids_array[ROOT_ID] = true;
 
-    int curr_node_id = ROOT_ID;
+    module_id_t curr_node_id = ROOT_ID;
     for (int step = 0; step < MAX_NODES - 1; step++) {
-        int next_node_id = -1;
+        module_id_t next_node_id = -1;
         //find dict[j].my_master_id == curr_node_id
         for (int j = 0; j < MAX_NODES; j++) {
             if (is_node_already_in_ids_array[j]){
@@ -84,7 +84,7 @@ void compute_ids_array(){
 }
 
 
-void remove_subtree_recursive(int node_id) {
+void remove_subtree_recursive(module_id_t node_id) {
     for (int j = 0; j < MAX_NODES; ++j) {
         if (is_dict_ix_empty[j]){
             continue;
