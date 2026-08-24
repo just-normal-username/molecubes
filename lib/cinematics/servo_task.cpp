@@ -29,6 +29,8 @@ void send_movement_ack(){
 
     TickType_t xFrequency  = pdMS_TO_TICKS(20);
 
+    bool backlash_compensation=false;
+    bool restart;
     while (1) {
         // by passing the portMAX_DELAY to xQueueReceive, we ensure that the task will be blocked until
         // there is a new command in the queue
@@ -38,9 +40,8 @@ void send_movement_ack(){
         ESP_LOGI("Servo", "Received new command: target=%.4f, speed=%.3f, acc=%.3f, jerk=%.3f", cmd.target_rad, cmd.speed, cmd.acc, cmd.jerk);
         cmd=sanitize_servo_command(msg);
         servo_data.moving.store(true);
-        bool backlash_compensation=false;
+        backlash_compensation=false;
 
-        bool restart;
         do {
             restart = false;
             backlash_compensation=false;
@@ -50,6 +51,7 @@ void send_movement_ack(){
 
 
             if (target < pos){
+                //settiamo il flag per la compensazione del backlash
                 target= max(target - backlash, servo_data.min_pos);
                 backlash_compensation=true;
             }
@@ -60,19 +62,25 @@ void send_movement_ack(){
             const float a = cmd.acc > 0.0f ? cmd.acc : servo_data.max_acc;
             const float v = cmd.speed > 0.0f ? cmd.speed : servo_data.max_speed;
 
-            // Target reached
-            if (fabsf(target - pos) < 0.005f) break;
+            // skippa un comando di movimento se il target è già stato raggiunto
+            if (fabsf(target - pos) < servo_deadzone) break;
 
             const float dir = (target > pos) ? 1.0f : -1.0f;
-            float vel  = servo_data.current_speed.load();   // modulr of speed, alway ≥ 0
+            float vel  = servo_data.current_speed.load();   // module of speed, always ≥ 0
             float acc  = servo_data.current_acc.load();   // acc with sign [rad/s²]: + accel, − decel
 
             MotionPhase phase = PH_ACCEL_JUP;
             MotionPhase prev_phase = PH_ACCEL_JUP;
-            bool done = false;
-
+            bool done = false; //flag che indica se il target è stato raggiunto
+            // salvando il tick corrente per calcolare il dt in modo estremamente preciso
             TickType_t xLastWake = xTaskGetTickCount();
             TickType_t xPrevTick = xLastWake;
+            
+            TickType_t now;
+            float dt;
+            float rem;
+            float d_stop_curr; // distanza necessaria per fermarsi
+            float d_trig; // distanza di trigger per passare alla fase di decelerazione
 
             // main loop with state machine for motion profiling
             while (!done) {
@@ -89,33 +97,28 @@ void send_movement_ack(){
                 }
 
                 // calculating actual dt
-                const TickType_t now = xTaskGetTickCount();
-                float dt = (float)(now - xPrevTick) * (portTICK_PERIOD_MS / 1000.0f);
+                now = xTaskGetTickCount();
+                if (now-xPrevTick ==0) {
+                    dt = 0.02f; // valore di default
+                }
+                else{
+                    dt = (float)(now - xPrevTick) * (portTICK_PERIOD_MS / 1000.0f);
+                }
                 xPrevTick = now;
 
                 // remaining distance
-                const float rem = fabsf(target - pos);
+                rem = fabsf(target - pos);
 
                 // distance necessary to stop
-                // facciamo una simulazione con i valori correnti e con quelli successivi e si tiene
-                // il risultato che si discosta meno dal target reale
-                // in questo modo prendiamo l'azione che ci porta il più vicino possibile al target reale
+                // facciamo una simulazione con i valori correnti
                 // in caso di overshoot il servo si fermerà anche se la velocità non è 0
                 // in caso di undershoot la velocità non scenderà mai sotto un valore minimo per raggiungere
                 // in modo fluido il target
-                const float d_stop_curr = (acc > 0.0f)
+                d_stop_curr = (acc > 0.0f)
                     ? decel_distance_with_acc(vel, acc, a, j, cmd.speed)
                     : decel_distance(vel, a, j, cmd.speed);
-                const float d_stop_succ = (acc > 0.0f)
-                    ? decel_distance_with_acc(vel+((acc+j*dt)*dt), acc+j*dt, a, j, cmd.speed)
-                    : decel_distance(vel, a, j, cmd.speed);
-                float d_trig=0;
-                if (abs(rem-d_stop_curr)<abs(rem-d_stop_succ)){
-                    d_trig=d_stop_curr;
-                }
-                else{
-                    d_trig=d_stop_succ;
-                }
+                d_trig = d_stop_curr;
+                // in questo modo se durante l'esecuzione la fase cambia, vengono calcolati subito i nuovi parametri
                 do{
                     ESP_LOGI("SERVO_API", "Fase: %d", phase);
                     prev_phase = phase;
@@ -137,13 +140,12 @@ void send_movement_ack(){
                             // allora dobbiamo passare alla fase di decelerazione.
                             // La velocità finale sarà data dalla velocità attuale + l'area sottesa alla curva di accelerazione,
                             // che in questo caso è un triangolo, dunque v= h*b/2=a*(a/j)/2 = a^2/(2*j)
-                            // non sono certo che possa accadere in questo caso
-                            float vp = vel + (a * a) / (2.0f * j);
-                            if (vp >= v) {
-                                ESP_LOGI("Servo", "Switching to ACCEL_JDN phase (vp: %f, v: %f, acc: %f, vel: %f)", vp, v, acc, vel);
+                            // v= velocità target, vel=velocità attuale
+                            if (vel + (a * a) / (2.0f * j) >= v) {
+                                ESP_LOGI("Servo", "Switching to ACCEL_JDN phase (vp: %f, v: %f, acc: %f, vel: %f)", vel + (a * a) / (2.0f * j), v, acc, vel);
                                 phase = PH_ACCEL_JDN;
                             } else {
-                                ESP_LOGI("Servo", "Switching to ACCEL_CONST phase (vp: %f, v: %f, acc: %f, vel: %f)", vp, v, acc, vel);
+                                ESP_LOGI("Servo", "Switching to ACCEL_CONST phase (vp: %f, v: %f, acc: %f, vel: %f)", vel + (a * a) / (2.0f * j), v, acc, vel);
                                 phase = PH_ACCEL_CONST;
                             }
                         } else {
@@ -153,9 +155,8 @@ void send_movement_ack(){
                             // La velocità finale sarà data dalla velocità attuale + l'area sottesa alla curva di accelerazione,
                             // che in questo caso è un triangolo, dunque v= h*b/2=a*(a/j)/2 = a^2/(2*j)
                             //in questo caso siamo in un profilo triangolare
-                            float vp = vel + (acc * acc) / (2.0f * j);
-                            if (vp >= v) {
-                                ESP_LOGI("Servo", "Switching to ACCEL_JDN phase (vp: %f, v: %f, acc: %f, vel: %f)", vp, v, acc, vel);
+                            if (vel + (acc * acc) / (2.0f * j) >= v) {
+                                ESP_LOGI("Servo", "Switching to ACCEL_JDN phase (vp: %f, v: %f, acc: %f, vel: %f)", vel + (acc * acc) / (2.0f * j), v, acc, vel);
                                 phase = PH_ACCEL_JDN;
                             }
                         }
@@ -264,6 +265,7 @@ void send_movement_ack(){
                         }
                         else if (vel < 0.0f) {
                             vel = 0.0f;
+                            acc = 0.0f;
                             done = true; // we have reached the target
                         }
                     }
@@ -295,15 +297,14 @@ void send_movement_ack(){
                     set_servo_pos(target);
                     done = true;
                 }
+                //metodo preciso per risvegliare la task
                 if (!done) vTaskDelayUntil(&xLastWake, xFrequency);
             }
         } while (restart);
-        //ESP_LOGI("Servo", "Setting servo position: target=%.4f, backlash_compensation=%s", cmd.target_rad, backlash_compensation ? "true" : "false");
         ESP_LOGI("Servo", "backlash_compensation: %d", backlash_compensation);
         if (backlash_compensation){
             ESP_LOGI("Servo", "Backlash compensation: moving to intermediate target=%.4f", cmd.target_rad - backlash);
             // if we have done a backlash compensation, we need to move the servo back to the original target position to compensate for the backlash
-            //vTaskDelay(pdMS_TO_TICKS(500)); 
             Payload p={};
             p.payload_servo.radians=cmd.target_rad;
             p.payload_servo.speed=0.5f;
