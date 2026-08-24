@@ -257,9 +257,11 @@ void send_movement_ack(){
                 // in questo caso non si va mai sotto una velocità minima per poter raggiungere 
                 // il target in modo fluido
                 if (vel < min_speed) {
-                    if (abs(pos-target)>min_speed*dt){
-                        ESP_LOGW("Servo", "default min_speed applicata per raggiungere correttamente il target");
-                        vel = min_speed;
+                    if (phase == PH_DECEL_JUP || phase == PH_DECEL_CONST || phase == PH_DECEL_JDN) {
+                        if (rem>d_trig+0.01f){
+                            ESP_LOGI("Servo", "default min_speed applicata per raggiungere correttamente il target");
+                            vel = min_speed;
+                        }
                     }
                     else if (vel < 0.0f) {
                         vel = 0.0f;
