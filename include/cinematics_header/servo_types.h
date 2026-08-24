@@ -1,5 +1,4 @@
-#ifndef SERVO_TYPES_H
-#define SERVO_TYPES_H
+#pragma once
 
 #include <stdio.h>
 #include <atomic>
@@ -19,7 +18,7 @@ typedef struct {
     bool send_ack;
 } ServoTaskParams;
 
-typedef struct { //todo inizializzare i valori costanti
+typedef struct {
     uint32_t duty_res;
     int8_t gpio;
     uint32_t sgnl_min_duty;
@@ -51,4 +50,3 @@ extern float servo_deadzone;
 extern QueueHandle_t xServoQueue; //queue handler
 extern TaskHandle_t xTaskHandle; //task handler
 
-#endif

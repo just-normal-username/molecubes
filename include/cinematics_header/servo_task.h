@@ -1,5 +1,4 @@
-#ifndef SERVO_TASK_H
-#define SERVO_TASK_H
+#pragma once
 
 #include "servo_types.h"
 #include "msg_structs.h"
@@ -10,4 +9,4 @@ ServoTaskParams sanitize_servo_command(Msg* msg);
 void servo_init();
 void send_movement_ack();
 
-#endif
+

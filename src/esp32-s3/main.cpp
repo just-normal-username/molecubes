@@ -76,7 +76,7 @@ extern "C" void app_main() {
     }
     ESP_LOGW("BOOT", "Reset reason: %d (%s)", reason, reason_str);
     
-    esp_log_level_set("*", ESP_LOG_WARN);
+    //esp_log_level_set("*", ESP_LOG_WARN);
     //initializing wifi, uart comms, cube data (mac address) and servo controller
     init_cube();
     if (init_cmd_logic() != ESP_OK) {

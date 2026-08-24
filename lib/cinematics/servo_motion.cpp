@@ -2,8 +2,7 @@
 #include <math.h>
 
 /// @brief  Numerically estimate the stopping distance with jerk and acceleration limits.
-/// using analytic formulas with quantized time steps led to some big errors. This
-/// function simulates the deceleration with time steps as close as possible to the control loop frequency.
+/// This function simulates the deceleration with time steps as close as possible to the control loop frequency.
 float decel_distance_sim(float v_init, float acc_init, float a_max, float j_max, float v_max) { //todo aggiungere decel jdn
     if (v_init <= 0.0f) return 0.0f;
 
@@ -40,12 +39,6 @@ float decel_distance_sim(float v_init, float acc_init, float a_max, float j_max,
             // updating the acceleration of the next step and clamping it to the target acceleration
             a_next = a + j * dt;
             if (a_next < target_a) a_next = target_a;
-            // we use the average of the acceleration because the acceleration changes linearly during the time step
-            // so the average acceleration is the best estimate of the actual acceleration during the time step
-            // because the area under the acceleration curve is the change in velocity,
-            // because the area is a triangle with base dt and height a_next-a, the average acceleration is a + (a_next - a) / 2 = (a + a_next) / 2
-            // float a_avg = 0.5f * (a + a_next);
-            // float v_next = v + a_avg * dt;
             v_next = v + a_next * dt; // uso l'accelerazione a scaglioni perchè è quello che fa la task reale
             
             // clamping velocity to max
@@ -72,11 +65,11 @@ float decel_distance_sim(float v_init, float acc_init, float a_max, float j_max,
             // sanitizing t_stop
             if (t_stop < 0.0f) t_stop = dt;
             // adding the final bit of distance covered until full stop with linear accelerated motion
-            x += v * t_stop + a_next * t_stop * t_stop;
+            x += v * t_stop;
             return x;
         }
         // updating distance with linear accelerated motion
-        x += v * dt + a_next * dt * dt;
+        x += v * dt;
         v = v_next;
         a = a_next;
     }

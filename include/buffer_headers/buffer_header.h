@@ -1,3 +1,4 @@
+#pragma once
 #include <freertos/queue.h>
 #include <atomic>
 

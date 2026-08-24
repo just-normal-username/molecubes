@@ -142,4 +142,3 @@ void task_execute_servo(void *arg);
 
 //*BRIDGE_WIFI.CPP
 esp_err_t convert_servo_instructions(const Command& command);
-

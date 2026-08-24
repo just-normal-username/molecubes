@@ -259,7 +259,7 @@ void send_movement_ack(){
                 // il target in modo fluido
                 if (vel < min_speed) {
                     if (phase == PH_DECEL_JUP || phase == PH_DECEL_CONST || phase == PH_DECEL_JDN) {
-                        if (rem>d_trig+0.01f){
+                        if (rem>d_trig){
                             ESP_LOGI("Servo", "default min_speed applicata per raggiungere correttamente il target");
                             vel = min_speed;
                         }
@@ -359,9 +359,6 @@ void servo_init(){
 
     // ensure logical current position has a known value before task start
     servo_data.current_pos.store(-0.1f);
-
-    // creating the queue with the designed lenght
-    xServoQueue = xQueueCreate(SERVO_QUEUE_LEN, sizeof(ServoTaskParams));
 
     // creating the persistent task
     xTaskCreate(

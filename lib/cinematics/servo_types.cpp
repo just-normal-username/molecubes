@@ -3,7 +3,6 @@
 
 
 TaskHandle_t xTaskHandle = NULL;
-QueueHandle_t xServoQueue = NULL; //queue handler
 
 // single definition of servo_data (shared across translation units)
 ServoData servo_data = {
