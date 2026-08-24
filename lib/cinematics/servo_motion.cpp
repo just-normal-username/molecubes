@@ -7,7 +7,7 @@
 float decel_distance_sim(float v_init, float acc_init, float a_max, float j_max, float v_max) { //todo non sono convinto che siano rispettati tutti i constraints
     if (v_init <= 0.0f) return 0.0f;
 
-    const float dt = 0.002f; 
+    const float dt = 0.020f; 
     // starting speed and acceleration
     float v = v_init;
     float a = acc_init;

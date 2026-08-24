@@ -37,7 +37,7 @@ float rad_from_deg(int32_t degrees){
 /// NOTE this function isn't meant to be used alone, it is used by the move_servo_speed function to set the position of the servo, if you want to set the position directly use move_servo_speed with speed=1.0f
 esp_err_t set_servo_pos(float rad){
     if (rad>=servo_data.min_pos && rad<=servo_data.max_pos){
-        ESP_LOGI("SERVO_API", "Posizione impostata: %.4f rad", rad);
+        //ESP_LOGI("SERVO_API", "Posizione impostata: %.4f rad", rad);
         double mid_point=servo_data.sgnl_min_duty+(servo_data.sgnl_max_duty-servo_data.sgnl_min_duty)/2.0;
         //double time= mid_point+rad/servo_data.max_pos*(servo_data.sgnl_max_duty-servo_data.sgnl_min_duty)/2.0; //calculating the signal time
         double time= mid_point+(rad+trim)/(1.5*M_PI)*(servo_data.sgnl_max_duty-servo_data.sgnl_min_duty); //calculating the signal time

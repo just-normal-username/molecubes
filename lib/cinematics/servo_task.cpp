@@ -97,13 +97,27 @@ void send_movement_ack(){
                 const float rem = fabsf(target - pos);
 
                 // distance necessary to stop
-                const float d_stop = (acc > 0.0f)
+                // facciamo una simulazione con i valori correnti e con quelli successivi e si tiene
+                // il risultato che si discosta meno dal target reale
+                // in questo modo prendiamo l'azione che ci porta il più vicino possibile al target reale
+                // in caso di overshoot il servo si fermerà anche se la velocità non è 0
+                // in caso di undershoot la velocità non scenderà mai sotto un valore minimo per raggiungere
+                // in modo fluido il target
+                const float d_stop_curr = (acc > 0.0f)
                     ? decel_distance_with_acc(vel, acc, a, j, cmd.speed)
                     : decel_distance(vel, a, j, cmd.speed);
-
-                // distance necessary to stop + delay to start to decelerate ?
-                const float d_trig = d_stop;
+                const float d_stop_succ = (acc > 0.0f)
+                    ? decel_distance_with_acc(vel+((acc+j*dt)*dt), acc+j*dt, a, j, cmd.speed)
+                    : decel_distance(vel, a, j, cmd.speed);
+                float d_trig=0;
+                if (abs(rem-d_stop_curr)<abs(rem-d_stop_succ)){
+                    d_trig=d_stop_curr;
+                }
+                else{
+                    d_trig=d_stop_succ;
+                }
                 do{
+                    ESP_LOGI("SERVO_API", "Fase: %d", phase);
                     prev_phase = phase;
                     switch (phase) {
 
@@ -239,7 +253,18 @@ void send_movement_ack(){
 
                 // calculating new speed and position with protections
                 vel += acc * dt;
-                if (vel < 0.0f) vel = 0.0f;
+                //in caso di undershoot il servo si fermerebbe prima di aver raggiunto il target
+                // in questo caso non si va mai sotto una velocità minima per poter raggiungere 
+                // il target in modo fluido
+                if (vel < min_speed) {
+                    if (abs(pos-target)>min_speed*dt){
+                        ESP_LOGW("Servo", "default min_speed applicata per raggiungere correttamente il target");
+                        vel = min_speed;
+                    }
+                    else if (vel < 0.0f) {
+                        vel = 0.0f;
+                    }
+                }
                 if (vel > v)    vel = v;
 
                 pos += dir * vel * dt;
@@ -268,7 +293,7 @@ void send_movement_ack(){
                 if (!done) vTaskDelayUntil(&xLastWake, xFrequency);
             }
         } while (restart);
-        ESP_LOGI("Servo", "Setting servo position: target=%.4f, backlash_compensation=%s", cmd.target_rad, backlash_compensation ? "true" : "false");
+        //ESP_LOGI("Servo", "Setting servo position: target=%.4f, backlash_compensation=%s", cmd.target_rad, backlash_compensation ? "true" : "false");
         ESP_LOGI("Servo", "backlash_compensation: %d", backlash_compensation);
         if (backlash_compensation){
             ESP_LOGI("Servo", "Backlash compensation: moving to intermediate target=%.4f", cmd.target_rad - backlash);
