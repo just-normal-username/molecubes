@@ -4,7 +4,7 @@
 /// @brief  Numerically estimate the stopping distance with jerk and acceleration limits.
 /// using analytic formulas with quantized time steps led to some big errors. This
 /// function simulates the deceleration with time steps as close as possible to the control loop frequency.
-float decel_distance_sim(float v_init, float acc_init, float a_max, float j_max, float v_max) {
+float decel_distance_sim(float v_init, float acc_init, float a_max, float j_max, float v_max) { //todo non sono convinto che siano rispettati tutti i constraints
     if (v_init <= 0.0f) return 0.0f;
 
     const float dt = 0.002f; 
@@ -29,23 +29,24 @@ float decel_distance_sim(float v_init, float acc_init, float a_max, float j_max,
         // so the average acceleration is the best estimate of the actual acceleration during the time step
         // because the area under the acceleration curve is the change in velocity,
         // because the area is a triangle with base dt and height a_next-a, the average acceleration is a + (a_next - a) / 2 = (a + a_next) / 2
-        float a_avg = 0.5f * (a + a_next);
-        float v_next = v + a_avg * dt;
+        // float a_avg = 0.5f * (a + a_next);
+        // float v_next = v + a_avg * dt;
+        float v_next = v + a_next * dt; // uso l'accelerazione a scaglioni perchè è quello che fa la task reale
         
         // clamping velocity to max
         if (v_next > v_max) v_next = v_max;
         // if the speed correctly goes to zero
         if (v_next <= 0.0f) {
             // calculating the exact time to stop with protection against division by 0
-            float t_stop = (a_avg == 0.0f) ? dt : (-v / a_avg);
+            float t_stop = (a_next == 0.0f) ? dt : (-v / a_next);
             // sanitizing t_stop
             if (t_stop < 0.0f) t_stop = dt;
             // adding the final bit of distance covered until full stop with linear accelerated motion
-            x += v * t_stop + 0.5f * a_avg * t_stop * t_stop;
+            x += v * t_stop + a_next * t_stop * t_stop;
             return x;
         }
         // updating distance with linear accelerated motion
-        x += v * dt + 0.5f * a_avg * dt * dt;
+        x += v * dt + a_next * dt * dt;
         v = v_next;
         a = a_next;
     }

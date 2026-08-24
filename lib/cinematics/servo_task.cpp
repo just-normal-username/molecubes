@@ -48,6 +48,7 @@ void send_movement_ack(){
             float pos    = servo_data.current_pos.load();
             float target = cmd.target_rad;
 
+
             if (target < pos){
                 target= max(target - backlash, servo_data.min_pos);
                 backlash_compensation=true;
@@ -66,7 +67,8 @@ void send_movement_ack(){
             float vel  = servo_data.current_speed.load();   // modulr of speed, alway ≥ 0
             float acc  = servo_data.current_acc.load();   // acc with sign [rad/s²]: + accel, − decel
 
-            MotionPhase phase = PH_ACCEL_JUP; //not too sure
+            MotionPhase phase = PH_ACCEL_JUP;
+            MotionPhase prev_phase = PH_ACCEL_JUP;
             bool done = false;
 
             TickType_t xLastWake = xTaskGetTickCount();
@@ -101,115 +103,139 @@ void send_movement_ack(){
 
                 // distance necessary to stop + delay to start to decelerate ?
                 const float d_trig = d_stop;
+                do{
+                    prev_phase = phase;
+                    switch (phase) {
 
-                switch (phase) {
+                    case PH_ACCEL_JUP:
+                        //in base alla simulazione abbiamo appena lo spazio per fermarci
+                        if (rem <= d_trig) { 
+                            ESP_LOGI("Servo", "Switching to decel_jup phase (remaining distance: %f, trigger distance: %f, acc: %f, vel: %f)", rem, d_trig, acc, vel);
+                            phase = PH_DECEL_JUP;
+                            break; 
+                        }
 
-                case PH_ACCEL_JUP:
-                    //this means that we have just enough space to stop
-                    if (rem <= d_trig) { 
-                        ESP_LOGI("Servo", "Switching to decel_jup phase (remaining distance: %f, trigger distance: %f, acc: %f, vel: %f)", rem, d_trig, acc, vel);
-                        phase = PH_DECEL_JUP;
-                        break; 
-                    }
+                        acc += j * dt; //updating acceleration
 
-                    acc += j * dt; //updating acceleration
-
-                    if (acc >= a) { //capping acceleration to a
-                        acc = a;
-                        // speed after ajerk-up phase
-                        // if the speed after the jerk-up phase is higher than the target speed, we have to go directly to jerk-down (should not happen)
-                        // otherwise we can enter the constant acceleration phase
-                        float vp = vel + (a * a) / (2.0f * j);
-                        if (vp >= v) {
-                            ESP_LOGI("Servo", "Switching to ACCEL_JDN phase (vp: %f, v: %f, acc: %f, vel: %f)", vp, v, acc, vel);
-                            phase = PH_ACCEL_JDN;
+                        if (acc >= a) { //capping acceleration to a
+                            acc = a;
+                            // questa è la velocità calcolata alla fine della fase di accelerazione, se questa velocità è maggiore della velocità target,
+                            // allora dobbiamo passare alla fase di decelerazione.
+                            // La velocità finale sarà data dalla velocità attuale + l'area sottesa alla curva di accelerazione,
+                            // che in questo caso è un triangolo, dunque v= h*b/2=a*(a/j)/2 = a^2/(2*j)
+                            // non sono certo che possa accadere in questo caso
+                            float vp = vel + (a * a) / (2.0f * j);
+                            if (vp >= v) {
+                                ESP_LOGI("Servo", "Switching to ACCEL_JDN phase (vp: %f, v: %f, acc: %f, vel: %f)", vp, v, acc, vel);
+                                phase = PH_ACCEL_JDN;
+                            } else {
+                                ESP_LOGI("Servo", "Switching to ACCEL_CONST phase (vp: %f, v: %f, acc: %f, vel: %f)", vp, v, acc, vel);
+                                phase = PH_ACCEL_CONST;
+                            }
                         } else {
-                            ESP_LOGI("Servo", "Switching to ACCEL_CONST phase (vp: %f, v: %f, acc: %f, vel: %f)", vp, v, acc, vel);
-                            phase = PH_ACCEL_CONST;
+                            
+                            // questa è la velocità calcolata alla fine della fase di accelerazione, se questa velocità è maggiore della velocità target,
+                            // allora dobbiamo passare alla fase di decelerazione.
+                            // La velocità finale sarà data dalla velocità attuale + l'area sottesa alla curva di accelerazione,
+                            // che in questo caso è un triangolo, dunque v= h*b/2=a*(a/j)/2 = a^2/(2*j)
+                            //in questo caso siamo in un profilo triangolare
+                            float vp = vel + (acc * acc) / (2.0f * j);
+                            if (vp >= v) {
+                                ESP_LOGI("Servo", "Switching to ACCEL_JDN phase (vp: %f, v: %f, acc: %f, vel: %f)", vp, v, acc, vel);
+                                phase = PH_ACCEL_JDN;
+                            }
                         }
-                    } else {
-                        // checking for overshoot
-                        float vp = vel + (acc * acc) / (2.0f * j);
-                        if (vp >= v) {
-                            ESP_LOGI("Servo", "Switching to ACCEL_JDN phase (vp: %f, v: %f, acc: %f, vel: %f)", vp, v, acc, vel);
+                        break;
+
+                    case PH_ACCEL_CONST:
+                        // in questo caso siamo nella fase di accelerazione costante, quindi la velocità aumenta linearmente
+                        // se la distanza rimanente è minore di quella calcolata dobbiamo ridurre l'accelerazione fino a farla diventare negativa,
+                        // quindi entriamo in una fase con jerk negativo, quindi decel_jup
+                        if (rem <= d_trig) { 
+                            ESP_LOGI("Servo", "Switching to DECEL_JUP phase (remaining distance: %f, trigger distance: %f, acc: %f, vel: %f)", rem, d_trig, acc, vel);
+                            phase = PH_DECEL_JUP;
+                            break;
+                        }
+                        // questa è la velocità calcolata alla fine della fase di accelerazione, se questa velocità è maggiore della velocità target,
+                        // allora dobbiamo passare alla fase di decelerazione.
+                        // La velocità finale sarà data dalla velocità attuale + l'area sottesa alla curva di accelerazione,
+                        // che in questo caso è un triangolo, dunque v= h*b/2=a*(a/j)/2 = a^2/(2*j)
+                        if (vel + (a * a) / (2.0f * j) >= v) {
+                            ESP_LOGI("Servo", "Switching to ACCEL_JDN phase (vel: %f, v: %f, acc: %f, vel: %f)", vel + (a * a) / (2.0f * j), v, acc, vel);
                             phase = PH_ACCEL_JDN;
                         }
-                    }
-                    break;
+                        break;
+                    case PH_ACCEL_JDN:
+                        // se lo spazio rimanente è minore di quello calcolato dobbiamo ridurre l'accelerazione fino a farla diventare negativa,
+                        // quindi entriamo in una fase con jerk negativo, quindi decel_jup
+                        // questo non cambia la cinematica rispetto a questa fase dato che stiamo già riducendo l'accelerazione
+                        if (rem <= d_trig) { 
+                            ESP_LOGI("Servo", "Switching to DECEL_JUP phase (remaining distance: %f, trigger distance: %f, acc: %f, vel: %f)", rem, d_trig, acc, vel);
+                            phase = PH_DECEL_JUP; 
+                            break; 
+                        }
+                        acc -= j * dt;
+                        if (acc <= 0.0f) {
+                            acc = 0.0f;
+                            vel = v;      // snap at the precise speed
+                            ESP_LOGI("Servo", "Switching to CRUISE phase (acc: %f, vel: %f)", acc, vel);
+                            phase = PH_CRUISE; //linear motion phase
+                        }
+                        break;
 
-                case PH_ACCEL_CONST:
-                    // if we have just enough space to stop, we have to start decelerating
-                    if (rem <= d_trig) { 
-                        ESP_LOGI("Servo", "Switching to DECEL_JUP phase (remaining distance: %f, trigger distance: %f, acc: %f, vel: %f)", rem, d_trig, acc, vel);
-                        phase = PH_DECEL_JUP;
+                    case PH_CRUISE:
+                        // se lo spazio rimanente è minore di quello calcolato dobbiamo entrare nella fase di accelerazione negativa
+                        if (rem <= d_trig) {
+                            ESP_LOGI("Servo", "Switching to DECEL_JUP phase (remaining distance: %f, trigger distance: %f, acc: %f, vel: %f)", rem, d_trig, acc, vel);
+                            phase = PH_DECEL_JUP;
+                        }
+                        break;
+
+                    
+
+                    case PH_DECEL_JUP:
+                        // starting deceleration ramp: acc goes from 0 to -a
+                        acc -= j * dt;
+                        if (acc < -a) acc = -a;
+
+                        // in questo caso la velocità è tale che per arrivare a velocità zero con accelerazione zero dobbiamo per forza
+                        // iniziare a ridurre l'accelerazione, quindi passiamo alla fase di decelerazione costante
+                        // questo perchè la velocità è in questo caso è data dall'area sottesa alla curva di accelerazione,
+                        // che in questo caso è un triangolo, dunque v= h*b/2=a*(a/j)/2 = a^2/(2*j)
+                        if (vel <= (acc * acc) / (2.0f * j)) {
+                            ESP_LOGI("Servo", "Switching to DECEL_JDN phase (vel: %f, acc: %f, j: %f)", vel, acc, j);
+                            phase = PH_DECEL_JDN;       // triangular profile
+                        } else if (acc <= -a) { // l'accelerazione raggiunta è quella massima, quindi possiamo passare alla fase di decelerazione costante
+                            ESP_LOGI("Servo", "Switching to DECEL_CONST phase (acc: %f, a: %f, vel: %f)", acc, a, vel);
+                            phase = PH_DECEL_CONST;     // trapezoidal profile
+                        }
+                        break;
+
+                    case PH_DECEL_CONST:
+                        // in questo caso la velocità è tale che per arrivare a velocità zero con accelerazione zero dobbiamo per forza
+                        // iniziare a ridurre l'accelerazione, quindi passiamo alla fase di decelerazione costante
+                        // questo perchè la velocità è in questo caso è data dall'area sottesa alla curva di accelerazione,
+                        // che in questo caso è un triangolo, dunque v= h*b/2=a*(a/j)/2 = a^2/(2*j)
+                        if (vel <= (a * a) / (2.0f * j)) {
+                            ESP_LOGI("Servo", "Switching to DECEL_JDN phase (vel: %f, a: %f, j: %f, acc: %f)", vel, a, j, acc);
+                            phase = PH_DECEL_JDN;
+                        }
+                        break;
+
+                    case PH_DECEL_JDN:
+                        // deceleration ramp: acc goes from -a to 0
+                        acc += j * dt;
+                        if (acc >= 0.0f) {
+                            acc = 0.0f;
+                            vel = 0.0f;
+                            ESP_LOGI("Servo", "Switching to DONE phase (acc: %f, vel: %f)", acc, vel);
+                            done = true;    // now we can stop, we have reached the target
+                        }
                         break;
                     }
-                    // if with the deceleration the speed would be too high, we have to start reducing acceleration
-                    if (vel + (a * a) / (2.0f * j) >= v) {
-                        ESP_LOGI("Servo", "Switching to ACCEL_JDN phase (vel: %f, v: %f, acc: %f, vel: %f)", vel + (a * a) / (2.0f * j), v, acc, vel);
-                        phase = PH_ACCEL_JDN;
-                    }
-                    break;
-                 case PH_ACCEL_JDN:
-                    // if we have just enough space to stop, we have to start decelerating
-                    if (rem <= d_trig) { 
-                        ESP_LOGI("Servo", "Switching to DECEL_JUP phase (remaining distance: %f, trigger distance: %f, acc: %f, vel: %f)", rem, d_trig, acc, vel);
-                        phase = PH_DECEL_JUP; 
-                        break; 
-                    }
-                    acc -= j * dt;
-                    if (acc <= 0.0f) {
-                        acc = 0.0f;
-                        vel = v;      // snap at the precise speed
-                        ESP_LOGI("Servo", "Switching to CRUISE phase (acc: %f, vel: %f)", acc, vel);
-                        phase = PH_CRUISE; //linear motion phase
-                    }
-                    break;
-
-                case PH_CRUISE:
-                    // if we have just enough space to stop, we have to start decelerating
-                    if (rem <= d_trig) {
-                        ESP_LOGI("Servo", "Switching to DECEL_JUP phase (remaining distance: %f, trigger distance: %f, acc: %f, vel: %f)", rem, d_trig, acc, vel);
-                        phase = PH_DECEL_JUP;
-                    }
-                    break;
-
-                
-
-                case PH_DECEL_JUP:
-                    // starting deceleration ramp: acc goes from 0 to -a
-                    acc -= j * dt;
-                    if (acc < -a) acc = -a;
-
-                    // in this case we have just enough space to stop, so we can skip the constant deceleration phase and go directly to jerk-down
-                    if (vel <= (acc * acc) / (2.0f * j)) {
-                        ESP_LOGI("Servo", "Switching to DECEL_JDN phase (vel: %f, acc: %f, j: %f)", vel, acc, j);
-                        phase = PH_DECEL_JDN;       // triangular profile
-                    } else if (acc <= -a) {
-                        ESP_LOGI("Servo", "Switching to DECEL_CONST phase (acc: %f, a: %f, vel: %f)", acc, a, vel);
-                        phase = PH_DECEL_CONST;     // trapezoidal profile
-                    }
-                    break;
-
-                case PH_DECEL_CONST:
-                    // if we have just enough space to stop, we have to start reducing deceleration
-                    if (vel <= (a * a) / (2.0f * j)) {
-                        ESP_LOGI("Servo", "Switching to DECEL_JDN phase (vel: %f, a: %f, j: %f, acc: %f)", vel, a, j, acc);
-                        phase = PH_DECEL_JDN;
-                    }
-                    break;
-
-                case PH_DECEL_JDN:
-                    // deceleration ramp: acc goes from -a to 0
-                    acc += j * dt;
-                    if (acc >= 0.0f) {
-                        acc = 0.0f;
-                        vel = 0.0f;
-                        ESP_LOGI("Servo", "Switching to DONE phase (acc: %f, vel: %f)", acc, vel);
-                        done = true;    // now we can stop, we have reached the target
-                    }
-                    break;
-                }
+                } while (phase != prev_phase);
+                // in questo modo se si verifica un cambio di fase vengono aggiornati immediatamente i parametri, invece di aspettare il tick successivo
+                // quindi la distanza di decelerazione sarà più precisa e non ci saranno overshoot
 
                 // calculating new speed and position with protections
                 vel += acc * dt;
