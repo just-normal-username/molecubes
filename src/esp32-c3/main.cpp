@@ -59,6 +59,7 @@ void init_cube() {
 // }
 
 extern "C" void app_main() {
+    esp_log_level_set("*", ESP_LOG_WARN);
     //initializing wifi, uart comms, cube data (mac address) and servo controller
     //init_wifi();
     // init_cmd_logic();

@@ -253,6 +253,7 @@ esp_err_t convert_servo_instructions(const Command& command){
         case Gcode::M505:{
             // Handle M505 command
             xQueueReset(h_queue_cmd_buffer); // Reset the command buffer queue
+            ack_to_receive.store(0); // Reset the ack counter
             ESP_LOGI("SERVO_API", "Command buffer svuotato");
             break;
         }

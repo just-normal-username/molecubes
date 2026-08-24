@@ -74,8 +74,9 @@ extern "C" void app_main() {
         case ESP_RST_SDIO: reason_str = "SDIO"; break;
         default: reason_str = "OTHER"; break;
     }
-    ESP_LOGI("BOOT", "Reset reason: %d (%s)", reason, reason_str);
-
+    ESP_LOGW("BOOT", "Reset reason: %d (%s)", reason, reason_str);
+    
+    esp_log_level_set("*", ESP_LOG_WARN);
     //initializing wifi, uart comms, cube data (mac address) and servo controller
     init_cube();
     if (init_cmd_logic() != ESP_OK) {

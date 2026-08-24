@@ -241,9 +241,9 @@ void send_movement_ack(){
                         acc += j * dt;
                         if (acc >= 0.0f) {
                             acc = 0.0f;
-                            vel = 0.0f;
+                            //vel = 0.0f;
                             ESP_LOGI("Servo", "Switching to DONE phase (acc: %f, vel: %f)", acc, vel);
-                            done = true;    // now we can stop, we have reached the target
+                            //done = true;    // now we can stop, we have reached the target
                         }
                         break;
                     }
@@ -262,9 +262,10 @@ void send_movement_ack(){
                             ESP_LOGI("Servo", "default min_speed applicata per raggiungere correttamente il target");
                             vel = min_speed;
                         }
-                    }
-                    else if (vel < 0.0f) {
-                        vel = 0.0f;
+                        else if (vel < 0.0f) {
+                            vel = 0.0f;
+                            done = true; // we have reached the target
+                        }
                     }
                 }
                 if (vel > v)    vel = v;
@@ -285,12 +286,14 @@ void send_movement_ack(){
                 //making sure that the servo accepts the new position command,
                 // if the new position signal is different from the previous one less than the deadzone
                 // the servo will drop that command and keep the previous one
+                
+                ESP_LOGI("Servo", "Setting servo position: pos=%.4f, target=%.4f, vel=%.4f, acc=%.4f, backlash_compensation=%s", pos, target, vel, acc, backlash_compensation ? "true" : "false");
                 if (fabsf(pos - target) > servo_deadzone){
-                    ESP_LOGI("Servo", "Setting servo position: pos=%.4f, target=%.4f, vel=%.4f, acc=%.4f, backlash_compensation=%s", pos, target, vel, acc, backlash_compensation ? "true" : "false");
                     set_servo_pos(pos);
                 }
                 else{
                     set_servo_pos(target);
+                    done = true;
                 }
                 if (!done) vTaskDelayUntil(&xLastWake, xFrequency);
             }

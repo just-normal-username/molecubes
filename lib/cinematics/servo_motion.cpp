@@ -22,10 +22,18 @@ float decel_distance_sim(float v_init, float acc_init, float a_max, float j_max,
         //target acceleration is the maximum allowed acceleration but is negative because we want to decelerate
         const float target_a = -a_max;
         // if the target acceleration is already reached, we don't need to apply jerk
-        if (a > target_a) j = -j_max;
+        if (a > target_a) {
+            //fase di jerk_up
+            j = -j_max; 
+        }
+        else {
+            // fase di accelerazione costante
+            j = 0.0f;
+        }
         float v_next;
         float a_next;
         if (v <= (a * a) / (2.0f * -j)) {
+            //passaggio alla fase di jerk_down
             j_dn=true;
         }
         if (!j_dn){
@@ -41,10 +49,17 @@ float decel_distance_sim(float v_init, float acc_init, float a_max, float j_max,
             v_next = v + a_next * dt; // uso l'accelerazione a scaglioni perchè è quello che fa la task reale
             
             // clamping velocity to max
+            // per sicurezza ma non dovrebbe succedere
             if (v_next > v_max) v_next = v_max;
         }
         else{
-            if (a<0.0f) j=j_max;
+            //siamo nella fase di jerk_down, quindi l'accelerazione va da -a a 0
+            if (a<0.0f){
+                j=j_max;
+            }
+            else{
+                j=0.0f;
+            }
             // updating the acceleration of the next step and clamping it to the target acceleration
             a_next = a + j * dt;
             v_next = v + a_next * dt; // uso l'accelerazione a scaglioni perchè è quello che fa la task reale
