@@ -4,6 +4,7 @@
 //definiti da me:
 #include "msg_structs.h"
 #include "utils_uart_comms.h"
+#include "task_handler.h"
 
 
 //* _______________________________________ GESTIONE DI HANDSHAKE
@@ -47,12 +48,8 @@ volatile bool received_MtS_ack = false;
 volatile int last_StM_ack_sender_id = -1;
 volatile bool received_StM_ack = false;
 
-TaskHandle_t handle_task_ping_slave = nullptr;
-TaskHandle_t handle_task_ping_master = nullptr;
 
 void task_ping_slave(void* info){ // mando MtS a slave
-  handle_task_ping_slave = xTaskGetCurrentTaskHandle();
-
   while(1){
     Payload p;
     p.payload_handshake.handshake_type = type_MtS;
@@ -93,8 +90,6 @@ void task_ping_master(void* info){
   if(SELF_ID == ROOT_ID){ //it shouldn't be the case.
     vTaskDelete(nullptr);
   }
-  handle_task_ping_master = xTaskGetCurrentTaskHandle();
-
   while(1){
     Payload p;
     p.payload_handshake.handshake_type = type_StM;
@@ -150,7 +145,7 @@ void task_handle_handshakes(void* info){
 
       if(SHOW_UART_COMMS_LOGS)
         printf("DOVREI SVEGLIARMI\n");
-      xTaskNotifyGive(handle_task_ping_slave); //ping_slave sends type_MtS
+      xTaskNotifyGive(task_ping_slave_handle); //ping_slave sends type_MtS
       if(SHOW_UART_COMMS_LOGS)
         printf("MI SONO SVEGLIATO\n");
 
@@ -174,7 +169,7 @@ void task_handle_handshakes(void* info){
 
       if(SHOW_UART_COMMS_LOGS)
         printf("DOVREI SVEGLIARMI\n");
-      xTaskNotifyGive(handle_task_ping_master); //ping_master sends type_StM
+      xTaskNotifyGive(task_ping_master_handle); //ping_master sends type_StM
       if(SHOW_UART_COMMS_LOGS)
         printf("MI SONO SVEGLIATO\n");
     }

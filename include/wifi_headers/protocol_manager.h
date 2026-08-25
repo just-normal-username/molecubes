@@ -18,7 +18,7 @@ enum Gcode {
     M505
 };
 
-map<Gcode, string> gcodeToString = { { G6, "G6" },
+inline map<Gcode, string> gcodeToString = { { G6, "G6" },
                                      { M222, "M222" },
                                      { M204, "M204" },
                                      { M205, "M205" },
