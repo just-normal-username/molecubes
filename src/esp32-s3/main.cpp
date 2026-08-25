@@ -6,7 +6,7 @@
 #include "esp_system.h"
 #include "esp_log.h"
 #include "protocol_manager.h"
-#include "buffer_headers/buffer_header.h"
+#include "buffer_header.h"
 
 
 
@@ -21,40 +21,13 @@ void init_cube() {
 //essenziale perchè il bridge wifi-uart carica i comandi in una coda che fa da buffer
 // in modo che poi la task che invia i comandi al servo li esegua uno alla volta
 // se in init_cmd_buffer() non si riesce a creare la coda viene lanciata un eccezione che blocca l'esecuzione
-esp_err_t init_cmd_logic(){
+void init_cmd_logic(){
     init_wifi();
-    init_uart_comms();
-    esp_err_t ris = init_cmd_buffer(); //todo gestire tutti i casi di errore terminando ogni task?
-    return ris;
+    //in caso di errore viene chiamato abort() che termina tutte le task
+    ESP_ERROR_CHECK(init_uart_comms());
+    ESP_ERROR_CHECK(init_cmd_buffer());
 }
 
-
-// Task: receive Msg* from the higher-level UART queue and translate into
-// servo controller commands by calling move_servo_speed()
-// this is needed beacause also the root has a servo
-
-// void task_execute_servo(void *arg) {
-//     (void)arg;
-//     extern QueueHandle_t h_queue_servo; // declared in utils_uart_comms.h / GLOBAL_VARS.cpp
-
-//     while (1) {
-//         Msg *msg = nullptr;
-//         if (xQueueReceive(h_queue_servo, &msg, portMAX_DELAY) == pdTRUE) {
-//             ESP_LOGI("EXEC_SERVO", "Received servo message, speed=%.3f, acc=%.3f, jerk=%.3f", msg->payload.payload_servo.speed, msg->payload.payload_servo.acceleration, msg->payload.payload_servo.jerk);
-//             if (msg) {
-//                 float radians = msg->payload.payload_servo.radians;
-//                 float speed = msg->payload.payload_servo.speed;
-//                 float acc = msg->payload.payload_servo.acceleration;
-//                 float jerk = msg->payload.payload_servo.jerk;
-//                 esp_err_t err = move_servo_speed(radians, speed, acc, jerk);
-//                 if (err != ESP_OK) {
-//                     ESP_LOGW("EXEC_SERVO", "move_servo_speed failed: %d", err);
-//                 }
-//                 delete msg; // free message allocated by UART layer
-//             }
-//         }
-//     }
-// }
 
 extern "C" void app_main() {
     // Print reset reason early to determine if the board was reset or app_main returned
@@ -76,26 +49,14 @@ extern "C" void app_main() {
     }
     ESP_LOGW("BOOT", "Reset reason: %d (%s)", reason, reason_str);
     
-    //esp_log_level_set("*", ESP_LOG_WARN);
+    esp_log_level_set("*", ESP_LOG_WARN);
     //initializing wifi, uart comms, cube data (mac address) and servo controller
     init_cube();
-    if (init_cmd_logic() != ESP_OK) {
-        ESP_LOGE("TEST", "Failed to initialize command logic. Halting execution.");
-        return; // Exit if initialization fails
-    }
-    servo_init();
-
-    // create and start the task that listens for servo messages coming from
-    // the UART/protocol layer and forwards movement commands to the
-    // servo controller (move_servo_speed)
-    // xTaskCreate(
-    //     task_execute_servo,
-    //     "ExecServoTask",
-    //     3072,
-    //     NULL,
-    //     2,
-    //     NULL
-    // );
+    init_cmd_logic();
+    //il codice uart deve essere inizializzato prima del servo perchè li
+    // avviene la creazione della coda da cui leggerà il servo e in cui
+    // verrà inviato il comando di movimento iniziale del servo 
+    ESP_ERROR_CHECK(servo_init());
 
 }
 

@@ -5,7 +5,7 @@
 #include "esp_mac.h"
 #include "init_wifi.h"
 #include "protocol_manager.h"
-#include "buffer_headers/buffer_header.h"
+#include "buffer_header.h"
 
 
 void init_cube() {

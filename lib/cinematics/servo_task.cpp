@@ -4,7 +4,8 @@
 #include <freertos/queue.h>
 #include "esp_log.h"
 #include <cmath>
-#include <buffer_headers/buffer_header.h>
+#include "buffer_header.h"
+#include "task_handler.h"
 
 
 
@@ -354,21 +355,26 @@ ServoTaskParams sanitize_servo_command(Msg* msg) {
 }
 
 
-void servo_init(){
+esp_err_t servo_init(){
     servo_timer_init();
+    BaseType_t result;
 
     // ensure logical current position has a known value before task start
     servo_data.current_pos.store(-0.1f);
 
     // creating the persistent task
-    xTaskCreate(
+    result = xTaskCreate(
         move_servo_speed_task_state_machine,
         "ServoMotorTask",
         3072, // Stack size
         NULL, //parameters
         1,
-        &xTaskHandle
+        &move_servo_speed_task_handle
     );
+    if (result != pdPASS) {
+        ESP_LOGE("SERVO_INIT", "Failed to create ServoMotorTask");
+        return ESP_FAIL;
+    }
     ESP_LOGI("SERVO_INIT", "Servo deadzone %f", servo_deadzone);
     //random delay to avoid all the servos to start at the same time and cause a big current absorption peak that could reset the board
     vTaskDelay(pdMS_TO_TICKS(rand()%3000)); 
@@ -381,4 +387,5 @@ void servo_init(){
     Msg* init_cmd=create_msg(SELF_ID, SELF_ID, type_servo, p);
     xQueueSend(h_queue_servo, &init_cmd, 0); //moving the servo to the initial position with max speed, acc and jerk to ensure a fast initialization
     vTaskDelay(pdMS_TO_TICKS(1000));
+    return ESP_OK;
 }

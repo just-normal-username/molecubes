@@ -1,5 +1,8 @@
 #include "utils_uart_comms.h"
 #include <esp_log.h>
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "task_handler.h"
 
 //* _______________________________________ MAIN e TEST
 // void test_task(void* info){
@@ -36,8 +39,8 @@ void task_loop_print_ids_array(void* info){
 }
 
 
-void init_uart_comms(){
-  
+esp_err_t init_uart_comms(){
+  BaseType_t result;
   //todo for test  
   //!!!ID!!!
   string mac_str = "";
@@ -117,38 +120,99 @@ void init_uart_comms(){
   //*QUEUES
   //h_queue_ack = xQueueCreate(10, sizeof(Msg*));
   h_queue_command_02 = xQueueCreate(10, sizeof(Msg*));
+  if (h_queue_command_02 == NULL) {
+    ESP_LOGE("UART COMMS", "Failed to create h_queue_command_02");
+    return ESP_FAIL;
+  }
   h_queue_handshake = xQueueCreate(10, sizeof(Msg*));
+  if (h_queue_handshake == NULL) {
+    ESP_LOGE("UART COMMS", "Failed to create h_queue_handshake");
+    return ESP_FAIL;
+  }
   h_queue_send_to_slave = xQueueCreate(10, sizeof(Msg*));
+  if (h_queue_send_to_slave == NULL) {
+    ESP_LOGE("UART COMMS", "Failed to create h_queue_send_to_slave");
+    return ESP_FAIL;
+  }
   h_queue_send_to_master = xQueueCreate(10, sizeof(Msg*));
+  if (h_queue_send_to_master == NULL) {
+    ESP_LOGE("UART COMMS", "Failed to create h_queue_send_to_master");
+    return ESP_FAIL;
+  }
   h_queue_report = xQueueCreate(10, sizeof(Msg*));
+  if (h_queue_report == NULL) {
+    ESP_LOGE("UART COMMS", "Failed to create h_queue_report");
+    return ESP_FAIL;
+  }
   h_queue_servo = xQueueCreate(10, sizeof(Msg*));
+  if (h_queue_servo == NULL) {
+    ESP_LOGE("UART COMMS", "Failed to create h_queue_servo");
+    return ESP_FAIL;
+  }
 
   //*UART
   init_uart_mutexes();
   init_uart((uart_port_t)U_WITH_SLAVE, FROM_SLAVE_RX, TO_SLAVE_TX);
   init_uart((uart_port_t)U_WITH_MASTER, FROM_MASTER_RX, TO_MASTER_TX); //todo viene inizializzata anche nella root?
 
-  xTaskCreate(task_receive_uart, "task_receive_uart_master", 10000, (void*)U_WITH_MASTER, 2, nullptr);
-  xTaskCreate(task_receive_uart, "task_receive_uart_slave", 10000, (void*)U_WITH_SLAVE, 2, nullptr);
+  result = xTaskCreate(task_receive_uart, "task_receive_uart_master", 10000, (void*)U_WITH_MASTER, 2, &task_receive_uart_master_handle);
+  if (result != pdPASS) {
+    ESP_LOGE("UART COMMS", "Failed to create task_receive_uart_master");
+    return ESP_FAIL;
+  }
+  result = xTaskCreate(task_receive_uart, "task_receive_uart_slave", 10000, (void*)U_WITH_SLAVE, 2, &task_receive_uart_slave_handle);
+  if (result != pdPASS) {
+    ESP_LOGE("UART COMMS", "Failed to create task_receive_uart_slave");
+    return ESP_FAIL;
+  }
 
-  xTaskCreate(task_send_uart, "task_send_uart_master", 10000, (void*)U_WITH_MASTER, 2, nullptr);
-  xTaskCreate(task_send_uart, "task_send_uart_slave", 10000, (void*)U_WITH_SLAVE, 2, nullptr);
+  result = xTaskCreate(task_send_uart, "task_send_uart_master", 10000, (void*)U_WITH_MASTER, 2, &task_send_uart_master_handle);
+  if (result != pdPASS) {
+    ESP_LOGE("UART COMMS", "Failed to create task_send_uart_master");
+    return ESP_FAIL;
+  }
+  result = xTaskCreate(task_send_uart, "task_send_uart_slave", 10000, (void*)U_WITH_SLAVE, 2, &task_send_uart_slave_handle);
+  if (result != pdPASS) {
+    ESP_LOGE("UART COMMS", "Failed to create task_send_uart_slave");
+    return ESP_FAIL;
+  }
 
 
   //*HANDSHAKE
   int arr[3] = {0,1,2};
   init_report_handler(arr, 3, USE_DEFAULT_IDS);
   if(!USE_DEFAULT_IDS){
-    xTaskCreate(task_ping_slave, "task_ping_slave", 5000, nullptr, 2, nullptr);
-    xTaskCreate(task_ping_master, "task_ping_master", 5000, nullptr, 2, nullptr);
-    xTaskCreate(task_handle_handshakes, "task_handle_handshakes", 5000, nullptr, 24, nullptr);
-    xTaskCreate(task_handle_report, "task_handle_report", 5000, nullptr, 2, nullptr);
+    result = xTaskCreate(task_ping_slave, "task_ping_slave", 5000, nullptr, 2, &task_ping_slave_handle);
+    if (result != pdPASS) {
+      ESP_LOGE("UART COMMS", "Failed to create task_ping_slave");
+      return ESP_FAIL;
+    }
+    result = xTaskCreate(task_ping_master, "task_ping_master", 5000, nullptr, 2, &task_ping_master_handle);
+    if (result != pdPASS) {
+      ESP_LOGE("UART COMMS", "Failed to create task_ping_master");
+      return ESP_FAIL;
+    }
+    result = xTaskCreate(task_handle_handshakes, "task_handle_handshakes", 5000, nullptr, 24, &task_handle_handshakes_handle);
+    if (result != pdPASS) {
+      ESP_LOGE("UART COMMS", "Failed to create task_handle_handshakes");
+      return ESP_FAIL;
+    }
+    result = xTaskCreate(task_handle_report, "task_handle_report", 5000, nullptr, 2, &task_handle_report_handle);
+    if (result != pdPASS) {
+      ESP_LOGE("UART COMMS", "Failed to create task_handle_report");
+      return ESP_FAIL;
+    }
   }
   
 
   if(SELF_ID == ROOT_ID && LOOP_PRINT_IDS_ARRAY){
-    xTaskCreate(task_loop_print_ids_array, "task_loop_print_ids_array", 2000, nullptr, 5, nullptr);
+    result = xTaskCreate(task_loop_print_ids_array, "task_loop_print_ids_array", 2000, nullptr, 5, &task_loop_print_ids_array_handle);
+    if (result != pdPASS) {
+      ESP_LOGE("UART COMMS", "Failed to create task_loop_print_ids_array");
+      return ESP_FAIL;
+    }
   }
 
 
+  return ESP_OK;
 }

@@ -48,5 +48,4 @@ extern ServoData servo_data;
 extern float servo_deadzone;
 
 extern QueueHandle_t xServoQueue; //queue handler
-extern TaskHandle_t xTaskHandle; //task handler
 

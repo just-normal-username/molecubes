@@ -84,7 +84,7 @@ extern QueueHandle_t h_queue_send_to_master;
 
 
 //* INIT_COMUNICATION.CPP
-void init_uart_comms();
+esp_err_t init_uart_comms();
 
 
 //* LED.CPP

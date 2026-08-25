@@ -9,6 +9,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "esp_log.h"
+#include "task_handler.h"
 
 static const char* TAG = "TcpServer";
 
@@ -124,7 +125,7 @@ void TcpServer::start(uint16_t port, TcpReceiveCallback on_receive, TcpConnectCa
     // Passa la porta come argomento al task tramite cast (evita allocazione heap)
     xTaskCreate(tcp_server_task, "tcp_server", TASK_STACK,
                 reinterpret_cast<void*>(static_cast<uintptr_t>(port)),
-                5, nullptr);
+                5, &tcp_server_task_handle);
 }
 
 void TcpServer::send(const std::string& data)

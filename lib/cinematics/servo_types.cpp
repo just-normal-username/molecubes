@@ -1,9 +1,6 @@
 #include "servo_types.h"
 #include <math.h>
 
-
-TaskHandle_t xTaskHandle = NULL;
-
 // single definition of servo_data (shared across translation units)
 ServoData servo_data = {
     .duty_res = 0,                // will be set by servo_timer_init()
