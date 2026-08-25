@@ -46,10 +46,9 @@ void buffer_task(void *pvParameters) {
             }
             if (status.load()==true){
                 //se in stato di esecuzione esegue il prossimo comando
-                //todo implementare G4, group e ack
                 Msg* msg;
                 //processa i nuovi comandi solo se sono raggruppati o se non ci sono ack da ricevere
-                ESP_LOGI("CMD_BUFFER", "ack_to_receive: %d, group_number: %d", ack_to_receive.load(), group_number);
+                ESP_LOGD("CMD_BUFFER", "ack_to_receive: %d, group_number: %d", ack_to_receive.load(), group_number);
                 if (group_number>0||ack_to_receive.load()==0){
                     group_number=group_number>0? group_number-1:0;
                     // if (group_number==0){
@@ -59,20 +58,20 @@ void buffer_task(void *pvParameters) {
                     // }
                     if (xQueueReceive(h_queue_cmd_buffer, &msg, 0) == pdTRUE) {
                         // Process the received command
-                        ESP_LOGI("CMD_BUFFER", "Processing command");
+                        ESP_LOGD("CMD_BUFFER", "Processing command");
                         if (msg->type == type_group) {
-                            ESP_LOGI("CMD_BUFFER", "Received group command with group_number=%d", msg->payload.payload_group.group_number);
+                            ESP_LOGD("CMD_BUFFER", "Received group command with group_number=%d", msg->payload.payload_group.group_number);
                             group_number=msg->payload.payload_group.group_number;
                         }
                         else if (msg->type == type_servo) {
-                            ESP_LOGI("CMD_BUFFER", "Sending servo command to target_id=%d", msg->target_id);
+                            ESP_LOGD("CMD_BUFFER", "Sending servo command to target_id=%d", msg->target_id);
                             // gestione comando per il servo
                             //aumentando il numero di ack da ricevere,
-                            ESP_LOGI("CMD_BUFFER", "ack_to_receive prima fetch_add: %d", ack_to_receive.load());
+                            ESP_LOGD("CMD_BUFFER", "ack_to_receive prima fetch_add: %d", ack_to_receive.load());
                             ack_to_receive.fetch_add(1);
-                            ESP_LOGI("CMD_BUFFER", "ack_to_receive dopo fetch_add: %d", ack_to_receive.load());
+                            ESP_LOGD("CMD_BUFFER", "ack_to_receive dopo fetch_add: %d", ack_to_receive.load());
                             if (msg->target_id == SELF_ID) {
-                                ESP_LOGI("CMD_BUFFER", "Command is for SELF_ID, sorting locally.");
+                                ESP_LOGD("CMD_BUFFER", "Command is for SELF_ID, sorting locally.");
                                 // It's for the Root: send to the local servo queue
                                 sort_new_msg(msg);
                             } else {
@@ -83,11 +82,11 @@ void buffer_task(void *pvParameters) {
                         else if (msg->type == type_g4) {
                             // blocca l'esecuzione per un certo numero
                             // vtaskdelay usa il numero di tick
-                            ESP_LOGI("CMD_BUFFER", "Received G4 command, delaying for %d milliseconds", msg->payload.payload_g4.millis);
+                            ESP_LOGD("CMD_BUFFER", "Received G4 command, delaying for %d milliseconds", msg->payload.payload_g4.millis);
                             vTaskDelay(msg->payload.payload_g4.millis / portTICK_PERIOD_MS);
-                            ESP_LOGI("CMD_BUFFER", "G4 delay completed.");
-                            ESP_LOGI("CMD_BUFFER", "ack_to_receive: %d", ack_to_receive.load());
-                            ESP_LOGI("CMD_BUFFER", "status: %d", status.load());
+                            ESP_LOGD("CMD_BUFFER", "G4 delay completed.");
+                            ESP_LOGD("CMD_BUFFER", "ack_to_receive: %d", ack_to_receive.load());
+                            ESP_LOGD("CMD_BUFFER", "status: %d", status.load());
                         }
                     }
                     else{

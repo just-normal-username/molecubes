@@ -17,7 +17,6 @@ int ids_array_len = 0;
 
 PayloadReport dict[MAX_NODES]; //disordinati
 bool is_dict_ix_empty[MAX_NODES];
-//dict[ix] ix = my_id del nodo contenuto
 
 
 
@@ -167,8 +166,6 @@ void task_handle_report(void* arg){
   while(1){
   Msg* msg = nullptr;
   xQueueReceive(h_queue_report, &msg, portMAX_DELAY);
-    
-    // printf("REPORT: SLAVE=%d, MY=%d, MASTER=%d\n", msg->payload.payload_report.my_slave_id, msg->payload.payload_report.my_id, msg->payload.payload_report.my_master_id);
     receive_new_report(msg->payload.payload_report);
     // free the message allocated by the UART layer
     delete msg;

@@ -150,9 +150,5 @@ void init_uart_comms(){
     xTaskCreate(task_loop_print_ids_array, "task_loop_print_ids_array", 2000, nullptr, 5, nullptr);
   }
 
-  //todo TEST FUNCTION
-  // if(SELF_ID == ROOT_ID && TEST_FUN){
-  //   xTaskCreate(test_task, "test_task", 5000, nullptr, 5, nullptr);
-  // }
 
 }

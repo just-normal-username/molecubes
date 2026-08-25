@@ -10,8 +10,6 @@
 
 
 
-//todo STO RISCRIVENDO COMPLETAMENTE QUESTO FILE QUA SOTTO, ANCHE HANDLER REPORT é DA RIVEDERE
-
 
 void send_report_to_root(){
   Payload p;

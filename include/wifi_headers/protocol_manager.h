@@ -5,7 +5,8 @@
 #include <functional>
 #include <string>
 #include <esp_err.h>
-
+#include <map>
+using namespace std;
 enum Gcode {
     G6,
     M222,
@@ -16,6 +17,16 @@ enum Gcode {
     M25,
     M505
 };
+
+map<Gcode, string> gcodeToString = { { G6, "G6" },
+                                     { M222, "M222" },
+                                     { M204, "M204" },
+                                     { M205, "M205" },
+                                     { G4, "G4" },
+                                     { M24, "M24" },
+                                     { M25, "M25" },
+                                     { M505, "M505" } };
+
 enum Args{
     P,
     S,
