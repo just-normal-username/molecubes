@@ -68,6 +68,20 @@ void sort_new_msg(Msg *msg){ //todo g4 qua non dovrebbe mai arrivare
         //decrementando il contatore di ack
         ESP_LOGI("UART COMMS", "Ack ricevuto da %d", msg->sender_id);
         ESP_LOGI("UART COMMS", "ack_to_receive prima: %d", ack_to_receive.load());
+        if (ack_to_receive.load() > 0) {
+            //è impossibile che ack_to_receive sia 0 quando viene ricevuto un ack,
+            //perchè ack_to_receive viene incrementato prima dell'invio del messaggio.
+            //questa protezione serve ad evitare casi di discrepanza dovuti a una possibile
+            //ricezione di un comando M505 che resetta il contatore ack_to_receive
+            //durante l'esecuzione di un movimento. Senza questa protezione
+            //si potrebbe arrivare in uno stato impossibile in cui ack_to_receive è
+            //negativo richiedendo l'invio di un altro comando M505 per sbloccare
+            //la situazione.
+            ack_to_receive.fetch_sub(1);
+            ESP_LOGI("UART COMMS", "ack_to_receive dopo: %d", ack_to_receive.load());
+        } else {
+            ESP_LOGW("UART COMMS", "Received unexpected servo ack from %d, ack_to_receive is already 0", msg->sender_id);
+        }
         ack_to_receive.fetch_sub(1);
         if (ack_to_receive.load() == 0) {
             ESP_LOGI("UART COMMS", "buffer task svegliata");

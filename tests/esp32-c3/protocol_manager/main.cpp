@@ -6,6 +6,7 @@
 #include "init_wifi.h"
 #include "protocol_manager.h"
 #include "buffer_header.h"
+#include <task_manager.h>
 
 
 void init_cube() {
@@ -169,6 +170,116 @@ esp_err_t test_buffer_overload(){
     return ESP_OK;
 }
 
+esp_err_t test_wrong_commands(){
+    ProtocolManager::handle_incoming("M505");
+    vTaskDelay(pdMS_TO_TICKS(20));
+    if (ProtocolManager::handle_incoming("G6") == ESP_OK) {
+        ESP_LOGE("TEST", "Fallito: accettato il comando G6 senza parametri.");
+        return ESP_FAIL;
+    }
+    vTaskDelay(pdMS_TO_TICKS(20));
+    if (ProtocolManager::handle_incoming("G6 N0") == ESP_OK) {
+        ESP_LOGE("TEST", "Fallito: accettato il comando G6 senza parametro P.");
+        return ESP_FAIL;
+    }
+    vTaskDelay(pdMS_TO_TICKS(20));
+    if (ProtocolManager::handle_incoming("G6 N0 P0 J3.0 S1.0") == ESP_OK) {
+        ESP_LOGE("TEST", "Fallito: accettato il comando G6 con jerk prima di speed");
+        return ESP_FAIL;
+    }
+    vTaskDelay(pdMS_TO_TICKS(20));
+    if (ProtocolManager::handle_incoming("G6 N0 P0 N1") == ESP_OK) {
+        ESP_LOGE("TEST", "Fallito: accettato il comando G6 con 2 servo senza il secondo parametro P");
+        return ESP_FAIL;
+    }
+    vTaskDelay(pdMS_TO_TICKS(20));
+    if (ProtocolManager::handle_incoming("G4") == ESP_OK) {
+        ESP_LOGE("TEST", "Fallito: accettato il comando G4 senza parametri");
+        return ESP_FAIL;
+    }
+    vTaskDelay(pdMS_TO_TICKS(20));
+    if (ProtocolManager::handle_incoming("M222") == ESP_OK) {
+        ESP_LOGE("TEST", "Fallito: accettato il comando M222 senza parametri");
+        return ESP_FAIL;
+    }
+    vTaskDelay(pdMS_TO_TICKS(20));
+    if (ProtocolManager::handle_incoming("M204") == ESP_OK) {
+        ESP_LOGE("TEST", "Fallito: accettato il comando M204 senza parametri");
+        return ESP_FAIL;
+    }
+    vTaskDelay(pdMS_TO_TICKS(20));
+    if (ProtocolManager::handle_incoming("M205") == ESP_OK) {
+        ESP_LOGE("TEST", "Fallito: accettato il comando M205 senza parametri");
+        return ESP_FAIL;
+    }
+    vTaskDelay(pdMS_TO_TICKS(20));
+    if (ProtocolManager::handle_incoming("G6 N0 P0 K23") == ESP_OK) {
+        ESP_LOGE("TEST", "Fallito: accettato il comando G6 con un parametro sconosciuto K");
+        return ESP_FAIL;
+    }
+    vTaskDelay(pdMS_TO_TICKS(20));
+    if (ProtocolManager::handle_incoming("G4 5000 6000") == ESP_OK) {
+        ESP_LOGE("TEST", "Fallito: accettato il comando G4 con due parametri");
+        return ESP_FAIL;
+    }
+    vTaskDelay(pdMS_TO_TICKS(20));
+    if (ProtocolManager::handle_incoming("M222 1.5 2.5") == ESP_OK) {
+        ESP_LOGE("TEST", "Fallito: accettato il comando M222 con due parametri");
+        return ESP_FAIL;
+    }
+    vTaskDelay(pdMS_TO_TICKS(20));
+    if (ProtocolManager::handle_incoming("M204 3.5 4.5") == ESP_OK) {
+        ESP_LOGE("TEST", "Fallito: accettato il comando M204 con due parametri");
+        return ESP_FAIL;
+    }
+    vTaskDelay(pdMS_TO_TICKS(20));
+    if (ProtocolManager::handle_incoming("M205 4.5 5.5") == ESP_OK) {
+        ESP_LOGE("TEST", "Fallito: accettato il comando M205 con due parametri");
+        return ESP_FAIL;
+    }
+    vTaskDelay(pdMS_TO_TICKS(20));
+    ProtocolManager::handle_incoming("M505");
+    vTaskDelay(pdMS_TO_TICKS(20));
+    if (ProtocolManager::handle_incoming("M24 K12") == ESP_OK) {
+        ESP_LOGE("TEST", "Fallito: accettato il comando M24 con un parametro sconosciuto K");
+        return ESP_FAIL;
+    }
+    vTaskDelay(pdMS_TO_TICKS(20));
+    if (ProtocolManager::handle_incoming("M25 K12") == ESP_OK) {
+        ESP_LOGE("TEST", "Fallito: accettato il comando M25 con un parametro sconosciuto K");
+        return ESP_FAIL;
+    }
+    vTaskDelay(pdMS_TO_TICKS(20));
+    if (ProtocolManager::handle_incoming("M505 K12") == ESP_OK) {
+        ESP_LOGE("TEST", "Fallito: accettato il comando M505 con un parametro sconosciuto K");
+        return ESP_FAIL;
+    }
+    vTaskDelay(pdMS_TO_TICKS(20));
+    if (ProtocolManager::handle_incoming("G6 N0 P0 ;ciao") != ESP_OK) {
+        ESP_LOGE("TEST", "Fallito: non accettato il comando G6 con un commento alla fine");
+        return ESP_FAIL;
+    }
+    vTaskDelay(pdMS_TO_TICKS(20));
+    if (ProtocolManager::handle_incoming(";ciao") != ESP_OK) {
+        ESP_LOGE("TEST", "Fallito: non accettata la riga di commento");
+        return ESP_FAIL;
+    }
+    vTaskDelay(pdMS_TO_TICKS(20));
+    if (ProtocolManager::handle_incoming("M222 2.0 ;ciao") != ESP_OK) {
+        ESP_LOGE("TEST", "Fallito: non accettato il comando M222 con un commento alla fine");
+        return ESP_FAIL;
+    }
+    vTaskDelay(pdMS_TO_TICKS(20));
+    ProtocolManager::handle_incoming("M505");
+    vTaskDelay(pdMS_TO_TICKS(20));
+    if (ProtocolManager::handle_incoming("M25 ;ciao") != ESP_OK) {
+        ESP_LOGE("TEST", "Fallito: non accettato il comando M25 con un commento alla fine");
+        return ESP_FAIL;
+    }
+    return ESP_OK;
+
+}
+
 
 extern "C" void app_main() {
     const esp_task_wdt_config_t wdt_config = {
@@ -192,9 +303,12 @@ extern "C" void app_main() {
     result=test_commands_sequence()!=ESP_OK ? ESP_FAIL : result;
     vTaskDelay(pdMS_TO_TICKS(1000)); // aspetta un secondo per iniziare il test successivo
     result=test_buffer_overload()!=ESP_OK ? ESP_FAIL : result;
+    vTaskDelay(pdMS_TO_TICKS(1000)); // aspetta un secondo per iniziare il test successivo
+    result=test_wrong_commands()!=ESP_OK ? ESP_FAIL : result;
     if (result==ESP_OK){
         ESP_LOGI("TEST", "Tutti i test completati con successo.");
     }else{
         ESP_LOGE("TEST", "Alcuni test sono falliti");
     }
+    terminate_every_task();
 }

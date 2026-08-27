@@ -284,6 +284,7 @@ esp_err_t ProtocolManager::handle_incoming(const std::string& line)
                 command.values.push_back(value);
                 command.args.push_back(Args::N); // argument placeholder
                 previous_arg = "N";
+                correct_format = true;
             }
             else if (token[0]==';'){
                 break; // Fine del comando, ignorando il resto della riga come commento
