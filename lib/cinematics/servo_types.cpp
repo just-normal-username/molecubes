@@ -13,8 +13,8 @@ ServoData servo_data = {
     .current_speed = std::atomic<float>(0.0f),
     .current_acc = std::atomic<float>(0.0f),
     .max_speed = 5.2f,
-    .max_acc = 100.0f,
-    .max_jerk = 1500.0f, //to have a fluid movement, the servo should be able to reach the target acceleration in 0.1 seconds, so jerk = acc / 0.1s
+    .max_acc = 10.0f,
+    .max_jerk = 150.0f, 
     .moving = std::atomic<bool>(false),
 };
 

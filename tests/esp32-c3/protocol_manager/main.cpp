@@ -22,7 +22,7 @@ void init_cube() {
 esp_err_t init_cmd_logic(){
     init_wifi();
     init_uart_comms();
-    esp_err_t ris = init_cmd_buffer(); //todo gestire tutti i casi di errore terminando ogni task?
+    esp_err_t ris = init_cmd_buffer();
     return ris;
 }
 
