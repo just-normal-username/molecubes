@@ -8,11 +8,12 @@
 
 //*PAYLOADS DEFINITIONS
 
-//todo just for mockup
+
 typedef struct{
     uint32_t millis;
 }PayloadG4;
 
+//todo just for mockup
 typedef struct{
     int num1;
     float num2;

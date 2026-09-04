@@ -32,8 +32,7 @@ namespace {
         int listen_sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
         if (listen_sock < 0) {
             ESP_LOGE(TAG, "Errore creazione socket: errno %d", errno);
-            vTaskDelete(nullptr);
-            return;
+            abort(); //fatal error, termina l'esecuzione e riavvia l'esp32
         }
 
         // Riutilizza la porta subito dopo una disconnessione
@@ -49,8 +48,7 @@ namespace {
         if (bind(listen_sock, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) < 0) {
             ESP_LOGE(TAG, "Bind fallita: errno %d", errno);
             close(listen_sock);
-            vTaskDelete(nullptr);
-            return;
+            abort(); //fatal error, termina l'esecuzione e riavvia l'esp32
         }
 
         // Put the socket in listening mode to accept incoming connection requests
