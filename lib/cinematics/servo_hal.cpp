@@ -41,7 +41,7 @@ esp_err_t set_servo_pos(float rad){
         double mid_point=servo_data.sgnl_min_duty+(servo_data.sgnl_max_duty-servo_data.sgnl_min_duty)/2.0;
         //double time= mid_point+rad/servo_data.max_pos*(servo_data.sgnl_max_duty-servo_data.sgnl_min_duty)/2.0; //calculating the signal time
         double time= mid_point+(rad+trim)/(1.5*M_PI)*(servo_data.sgnl_max_duty-servo_data.sgnl_min_duty); //calculating the signal time
-        uint32_t max_duty = (1 << servo_data.duty_res);
+        uint32_t max_duty = (1 << servo_data.duty_res); // valore massimo a cui arriva il contatore del timer
         uint32_t duty= (uint32_t)(time/20000.0*max_duty); //fraction of the period in micro-seconds
         ledc_set_duty(
             LEDC_LOW_SPEED_MODE,

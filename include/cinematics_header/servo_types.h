@@ -47,5 +47,5 @@ inline constexpr uint32_t servo_deadzone_ms=2;
 extern ServoData servo_data;
 extern float servo_deadzone;
 
-extern QueueHandle_t xServoQueue; //queue handler
+//extern QueueHandle_t xServoQueue; //queue handler
 

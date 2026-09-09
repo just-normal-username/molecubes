@@ -3,7 +3,7 @@
 
 /// @brief  Numerically estimate the stopping distance with jerk and acceleration limits.
 /// This function simulates the deceleration with time steps as close as possible to the control loop frequency.
-float decel_distance_sim(float v_init, float acc_init, float a_max, float j_max, float v_max) { //todo aggiungere decel jdn
+float decel_distance_sim(float v_init, float acc_init, float a_max, float j_max, float v_max) {
     if (v_init <= 0.0f) return 0.0f;
 
     const float dt = 0.020f; 
@@ -13,11 +13,11 @@ float decel_distance_sim(float v_init, float acc_init, float a_max, float j_max,
     // distance covered so far
     float x = 0.0f;
     // capping the number of iterations to avoid infinite loops
-    const uint32_t max_iters = 20000;
+    const uint32_t max_iters = 2000;
     bool j_dn=false;
     float j = 0.0f;
     //interrupting the simulation if the velocity is very low
-    for (uint32_t i = 0; i < max_iters && v > 1e-6f; ++i) {
+    for (uint32_t i = 0; i < max_iters && v > 0.002f; ++i) {
         //target acceleration is the maximum allowed acceleration but is negative because we want to decelerate
         const float target_a = -a_max;
         // if the target acceleration is already reached, we don't need to apply jerk
@@ -31,7 +31,7 @@ float decel_distance_sim(float v_init, float acc_init, float a_max, float j_max,
         }
         float v_next;
         float a_next;
-        if (v <= (a * a) / (2.0f * -j)) {
+        if (v <= (a * a) / (2.0f * j_max)) {
             //passaggio alla fase di jerk_down
             j_dn=true;
         }
@@ -55,6 +55,7 @@ float decel_distance_sim(float v_init, float acc_init, float a_max, float j_max,
             }
             // updating the acceleration of the next step and clamping it to the target acceleration
             a_next = a + j * dt;
+            if (a_next > 0.0f) a_next = 0.0f;
             v_next = v + a_next * dt; // uso l'accelerazione a scaglioni perchè è quello che fa la task reale
 
         }
@@ -69,7 +70,7 @@ float decel_distance_sim(float v_init, float acc_init, float a_max, float j_max,
             return x;
         }
         // updating distance with linear accelerated motion
-        x += v * dt;
+        x += v_next * dt;
         v = v_next;
         a = a_next;
     }
@@ -83,8 +84,8 @@ float decel_distance(float v, float a_max, float j_max, float v_max) {
 
 /// @brief Calculates the distance required to decelerate from a given velocity and acceleration to zero
 float decel_distance_with_acc(float v, float a, float a_max, float j_max, float v_max) {
-    // if we're not currently accelerating (a <= 0) the fallback is the same
+    // if we're not currently accelerating (a == 0) the fallback is the same
     // as decel_distance.
-    if (a <= 0.0f) return decel_distance(v, a_max, j_max, v_max);
+    if (a == 0.0f) return decel_distance(v, a_max, j_max, v_max);
     return decel_distance_sim(v, a, a_max, j_max, v_max);
 }

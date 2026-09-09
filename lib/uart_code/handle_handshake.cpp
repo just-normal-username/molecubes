@@ -88,6 +88,7 @@ void task_ping_slave(void* info){ // mando MtS a slave
 
 void task_ping_master(void* info){ 
   if(SELF_ID == ROOT_ID){ //it shouldn't be the case.
+    task_ping_master_handle = NULL;
     vTaskDelete(nullptr);
   }
   while(1){
