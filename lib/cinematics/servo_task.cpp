@@ -32,6 +32,7 @@ void move_servo_speed_task_state_machine(void *pvParameters) {
 
     bool backlash_compensation=false;
     bool restart;
+    float appo;
     while (1) {
         // by passing the portMAX_DELAY to xQueueReceive, we ensure that the task will be blocked until
         // there is a new command in the queue
@@ -69,6 +70,7 @@ void move_servo_speed_task_state_machine(void *pvParameters) {
             const float dir = (target > pos) ? 1.0f : -1.0f;
             float vel  = servo_data.current_speed.load();   // module of speed, always ≥ 0
             float acc  = servo_data.current_acc.load();   // acc with sign [rad/s²]: + accel, − decel
+            float prev_acc = acc; // previous acceleration
 
             MotionPhase phase = PH_ACCEL_JUP;
             MotionPhase prev_phase = PH_ACCEL_JUP;
@@ -115,9 +117,7 @@ void move_servo_speed_task_state_machine(void *pvParameters) {
                 // in caso di overshoot il servo si fermerà anche se la velocità non è 0
                 // in caso di undershoot la velocità non scenderà mai sotto un valore minimo per raggiungere
                 // in modo fluido il target
-                d_stop_curr = (acc > 0.0f)
-                    ? decel_distance_with_acc(vel, acc, a, j, cmd.speed)
-                    : decel_distance(vel, a, j, cmd.speed);
+                d_stop_curr = decel_distance_with_acc(vel, acc, a, j, cmd.speed);
                 d_trig = d_stop_curr;
                 // in questo modo se durante l'esecuzione la fase cambia, vengono calcolati subito i nuovi parametri
                 do{
@@ -128,11 +128,11 @@ void move_servo_speed_task_state_machine(void *pvParameters) {
                     case PH_ACCEL_JUP:
                         //in base alla simulazione abbiamo appena lo spazio per fermarci
                         if (rem <= d_trig) { 
-                            ESP_LOGI("Servo", "Switching to decel_jup phase (remaining distance: %f, trigger distance: %f, acc: %f, vel: %f)", rem, d_trig, acc, vel);
+                            ESP_LOGI("Servo", "Switching to ACCEL_JDN phase (remaining distance: %f, trigger distance: %f, acc: %f, vel: %f)", rem, d_trig, acc, vel);
                             phase = PH_ACCEL_JDN;
                             break; 
                         }
-
+                        appo=acc;
                         acc += j * dt; //updating acceleration
 
                         if (acc >= a) { //capping acceleration to a
@@ -144,6 +144,7 @@ void move_servo_speed_task_state_machine(void *pvParameters) {
                             // v= velocità target, vel=velocità attuale
                             if (vel + (a * a) / (2.0f * j) >= v) {
                                 ESP_LOGI("Servo", "Switching to ACCEL_JDN phase (vp: %f, v: %f, acc: %f, vel: %f)", vel + (a * a) / (2.0f * j), v, acc, vel);
+                                acc=appo;
                                 phase = PH_ACCEL_JDN;
                             } else {
                                 ESP_LOGI("Servo", "Switching to ACCEL_CONST phase (vp: %f, v: %f, acc: %f, vel: %f)", vel + (a * a) / (2.0f * j), v, acc, vel);
@@ -212,7 +213,8 @@ void move_servo_speed_task_state_machine(void *pvParameters) {
                     
 
                     case PH_DECEL_JUP:
-                        // starting deceleration ramp: acc goes from 0 to -a
+                        // starting deceleration ramp: acc goes from 0 to -a'
+                        appo=acc;
                         acc -= j * dt;
                         if (acc < -a) acc = -a;
 
@@ -222,6 +224,7 @@ void move_servo_speed_task_state_machine(void *pvParameters) {
                         // che in questo caso è un triangolo, dunque v= h*b/2=a*(a/j)/2 = a^2/(2*j)
                         if (vel <= (acc * acc) / (2.0f * j)) {
                             ESP_LOGI("Servo", "Switching to DECEL_JDN phase (vel: %f, acc: %f, j: %f)", vel, acc, j);
+                            acc=appo;
                             phase = PH_DECEL_JDN;       // triangular profile
                             break;
                         } else if (acc <= -a) { // l'accelerazione raggiunta è quella massima, quindi possiamo passare alla fase di decelerazione costante
@@ -257,7 +260,10 @@ void move_servo_speed_task_state_machine(void *pvParameters) {
                 // quindi la distanza di decelerazione sarà più precisa e non ci saranno overshoot
 
                 // calculating new speed and position with protections
-                vel += acc * dt;
+                
+                //vel += acc * dt;
+
+
                 //in caso di undershoot il servo si fermerebbe prima di aver raggiunto il target
                 // in questo caso non si va mai sotto una velocità minima per poter raggiungere 
                 // il target in modo fluido
@@ -274,9 +280,15 @@ void move_servo_speed_task_state_machine(void *pvParameters) {
                         }
                     }
                 }
-                if (vel > v)    vel = v;
 
-                pos += dir * vel * dt;
+                //pos += dir * vel * dt;
+
+                pos+= dir* (vel * dt+0.5f*prev_acc * dt*dt+(1.0f/6.0f)*(acc-prev_acc)*dt*dt); // integrazione della velocità
+
+                
+                vel +=prev_acc * dt+ 0.5f * (acc - prev_acc) * dt; // trapezoidal integration of acceleration
+                if (vel > v)    vel = v;
+                prev_acc = acc;
 
                 // correcting overshoot
                 if ((dir > 0.0f && pos >= target) || (dir < 0.0f && pos <= target)) {
