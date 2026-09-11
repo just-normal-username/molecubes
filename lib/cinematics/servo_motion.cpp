@@ -62,7 +62,7 @@ float decel_distance_sim(float v_init, float acc_init, float a_max, float j_max,
         }
         // updating distance with linear accelerated motion
         //x += v_next * dt;
-        if (v_next < 0.0f){
+        if (v_next <= 0.0f){
             float new_dt=fabs(a)/j_max; // tempo necessario per arrivare ad avere l'accelerazione pari a zero
             x+= v * new_dt + 0.5f * a * new_dt * new_dt + (1.0f / 6.0f) * (0.0f - a) * new_dt * new_dt;
         }
