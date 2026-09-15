@@ -177,7 +177,7 @@ void task_handle_handshakes(void* info){
 
     // msg was allocated with `new` in task_receive_uart/create_msg ->
     // must use `delete` to release it. `free` corrupts the C++ heap.
-    delete msg;
+    free_msg(msg);
   }
 }
 

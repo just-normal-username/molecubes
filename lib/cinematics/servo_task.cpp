@@ -388,7 +388,7 @@ ServoTaskParams sanitize_servo_command(Msg* msg) {
     params.acc = msg->payload.payload_servo.acceleration>servo_data.max_acc?servo_data.max_acc:msg->payload.payload_servo.acceleration;
     params.jerk = msg->payload.payload_servo.jerk>servo_data.max_jerk?servo_data.max_jerk:msg->payload.payload_servo.jerk;
     params.send_ack = msg->payload.payload_servo.send_ack;
-    delete msg; // free message allocated by UART layer
+    free_msg(msg); // free message allocated by UART layer
     return params;
 }
 

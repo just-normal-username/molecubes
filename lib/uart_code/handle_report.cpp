@@ -13,7 +13,7 @@ using namespace std;
 
 #define MAX_NODES 10
 
-int ids_array[MAX_NODES]; //ordinati
+module_id_t ids_array[MAX_NODES]; //ordinati
 int ids_array_len = 0;
 
 PayloadReport dict[MAX_NODES]; //disordinati
@@ -170,7 +170,7 @@ void task_handle_report(void* arg){
   xQueueReceive(h_queue_report, &msg, portMAX_DELAY);
     receive_new_report(msg->payload.payload_report);
     // free the message allocated by the UART layer
-    delete msg;
+    free_msg(msg);
   }
 }
 

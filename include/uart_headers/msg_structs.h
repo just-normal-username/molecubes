@@ -64,8 +64,8 @@ typedef struct{ //massimo 255 messaggi
 
 //con le union alloca sempre i byte x il messaggio + lungo
 typedef union{ 
-    PayloadG4 payload_g4; //todo just for mockup
-    PayloadCommand02 payload_command_02; //todo just for mockup
+    PayloadG4 payload_g4;
+    PayloadCommand02 payload_debug; //todo just for mockup
     PayloadHandshake payload_handshake;
     PayloadReport payload_report;
     PayloadServo payload_servo;
@@ -78,7 +78,7 @@ typedef union{
 //*MSG DEFINIFION
 typedef enum{
     type_g4,
-    type_command_02, //todo just for mockup
+    type_debug, //todo just for mockup
     type_handshake,
     type_report,
     type_servo,
