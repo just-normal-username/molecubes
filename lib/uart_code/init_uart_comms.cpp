@@ -119,9 +119,9 @@ esp_err_t init_uart_comms(){
 
   //*QUEUES
   //h_queue_ack = xQueueCreate(10, sizeof(Msg*));
-  h_queue_command_02 = xQueueCreate(10, sizeof(Msg*));
-  if (h_queue_command_02 == NULL) {
-    ESP_LOGE("UART COMMS", "Failed to create h_queue_command_02");
+  h_queue_debug = xQueueCreate(10, sizeof(Msg*));
+  if (h_queue_debug == NULL) {
+    ESP_LOGE("UART COMMS", "Failed to create h_queue_debug");
     return ESP_FAIL;
   }
   h_queue_handshake = xQueueCreate(10, sizeof(Msg*));
@@ -153,24 +153,33 @@ esp_err_t init_uart_comms(){
   //*UART
   init_uart_mutexes();
   init_uart((uart_port_t)U_WITH_SLAVE, FROM_SLAVE_RX, TO_SLAVE_TX);
-  init_uart((uart_port_t)U_WITH_MASTER, FROM_MASTER_RX, TO_MASTER_TX); //todo viene inizializzata anche nella root?
-
-  result = xTaskCreate(task_receive_uart, "task_receive_uart_master", 10000, (void*)U_WITH_MASTER, 2, &task_receive_uart_master_handle);
-  if (result != pdPASS) {
-    ESP_LOGE("UART COMMS", "Failed to create task_receive_uart_master");
-    return ESP_FAIL;
+  //protezione per non inizializzare l'uart con il master se è la root
+  if (SELF_ID != ROOT_ID) {
+    init_uart((uart_port_t)U_WITH_MASTER, FROM_MASTER_RX, TO_MASTER_TX);
+    result = xTaskCreate(task_receive_uart, "task_receive_uart_master", 10000, (void*)U_WITH_MASTER, 2, &task_receive_uart_master_handle);
+    if (result != pdPASS) {
+      ESP_LOGE("UART COMMS", "Failed to create task_receive_uart_master");
+      return ESP_FAIL;
+    }
+    result = xTaskCreate(task_send_uart, "task_send_uart_master", 10000, (void*)U_WITH_MASTER, 2, &task_send_uart_master_handle);
+    if (result != pdPASS) {
+      ESP_LOGE("UART COMMS", "Failed to create task_send_uart_master");
+      return ESP_FAIL;
+    }
+    result = xTaskCreate(task_ping_master, "task_ping_master", 5000, nullptr, 2, &task_ping_master_handle);
+    if (result != pdPASS) {
+      ESP_LOGE("UART COMMS", "Failed to create task_ping_master");
+      return ESP_FAIL;
+    }
   }
+
+  
   result = xTaskCreate(task_receive_uart, "task_receive_uart_slave", 10000, (void*)U_WITH_SLAVE, 2, &task_receive_uart_slave_handle);
   if (result != pdPASS) {
     ESP_LOGE("UART COMMS", "Failed to create task_receive_uart_slave");
     return ESP_FAIL;
   }
 
-  result = xTaskCreate(task_send_uart, "task_send_uart_master", 10000, (void*)U_WITH_MASTER, 2, &task_send_uart_master_handle);
-  if (result != pdPASS) {
-    ESP_LOGE("UART COMMS", "Failed to create task_send_uart_master");
-    return ESP_FAIL;
-  }
   result = xTaskCreate(task_send_uart, "task_send_uart_slave", 10000, (void*)U_WITH_SLAVE, 2, &task_send_uart_slave_handle);
   if (result != pdPASS) {
     ESP_LOGE("UART COMMS", "Failed to create task_send_uart_slave");
@@ -187,11 +196,7 @@ esp_err_t init_uart_comms(){
       ESP_LOGE("UART COMMS", "Failed to create task_ping_slave");
       return ESP_FAIL;
     }
-    result = xTaskCreate(task_ping_master, "task_ping_master", 5000, nullptr, 2, &task_ping_master_handle);
-    if (result != pdPASS) {
-      ESP_LOGE("UART COMMS", "Failed to create task_ping_master");
-      return ESP_FAIL;
-    }
+    
     result = xTaskCreate(task_handle_handshakes, "task_handle_handshakes", 5000, nullptr, 24, &task_handle_handshakes_handle);
     if (result != pdPASS) {
       ESP_LOGE("UART COMMS", "Failed to create task_handle_handshakes");

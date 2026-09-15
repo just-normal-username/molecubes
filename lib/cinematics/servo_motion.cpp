@@ -31,7 +31,7 @@ float decel_distance_sim(float v_init, float acc_init, float a_max, float j_max,
         }
         float v_next;
         float a_next;
-        if (v <= (a * a) / (2.0f * j_max)) {
+        if (a<=0.0f&&v <= (a * a) / (2.0f * j_max)) {
             //passaggio alla fase di jerk_down
             j_dn=true;
         }
@@ -39,8 +39,8 @@ float decel_distance_sim(float v_init, float acc_init, float a_max, float j_max,
             // updating the acceleration of the next step and clamping it to the target acceleration
             a_next = a + j * dt;
             if (a_next < target_a) a_next = target_a;
-            v_next = v + a_next * dt; // uso l'accelerazione a scaglioni perchè è quello che fa la task reale
-            
+            //v_next = v + a_next * dt; // uso l'accelerazione a scaglioni perchè è quello che fa la task reale
+            v_next = v + a * dt + 0.5f * (a_next - a) * dt; // trapezoidal integration of acceleration
             // clamping velocity to max
             // per sicurezza ma non dovrebbe succedere
             if (v_next > v_max) v_next = v_max;
@@ -56,21 +56,38 @@ float decel_distance_sim(float v_init, float acc_init, float a_max, float j_max,
             // updating the acceleration of the next step and clamping it to the target acceleration
             a_next = a + j * dt;
             if (a_next > 0.0f) a_next = 0.0f;
-            v_next = v + a_next * dt; // uso l'accelerazione a scaglioni perchè è quello che fa la task reale
+            //v_next = v + a_next * dt; // uso l'accelerazione a scaglioni perchè è quello che fa la task reale
+            v_next = v + a * dt + 0.5f * (a_next - a) * dt; // trapezoidal integration of acceleration
 
         }
-        // if the speed correctly goes to zero
-        if (v_next <= 0.0f|| (j_dn&&a>0)) {
-            // calculating the exact time to stop with protection against division by 0
-            float t_stop = (a_next == 0.0f) ? dt : (-v / a_next);
-            // sanitizing t_stop
-            if (t_stop < 0.0f) t_stop = dt;
-            // adding the final bit of distance covered until full stop with linear accelerated motion
-            x += v * t_stop;
-            return x;
-        }
         // updating distance with linear accelerated motion
-        x += v_next * dt;
+        //x += v_next * dt;
+        if (v_next <= 0.0f){
+            float delta=a*a-2.0f*j*v;
+            float delta_sqrt;
+            float new_dt;
+            if (delta >=0.0f){
+                delta_sqrt=sqrtf(delta);
+                if ((-a+delta_sqrt)/j>=0.0f){
+                    if((-a-delta_sqrt)/j>=0.0f){
+                        new_dt=fmin((-a+delta_sqrt)/j,(-a-delta_sqrt)/j);
+                    }
+                    else{
+                        new_dt=(-a+delta_sqrt)/j;
+                    }
+                }
+                else{
+                    new_dt=(-a-delta_sqrt)/j;
+                }
+            }
+            else{
+                new_dt=fabs(a)/j_max; // tempo necessario per arrivare ad avere l'accelerazione pari a zero
+            }
+            x+= v * new_dt + 0.5f * a * new_dt * new_dt + (1.0f / 6.0f) * (0.0f - a) * new_dt * new_dt;
+        }
+        else{
+            x+= v * dt + 0.5f * a * dt * dt + (1.0f / 6.0f) * (a_next - a) * dt * dt;
+        }
         v = v_next;
         a = a_next;
     }

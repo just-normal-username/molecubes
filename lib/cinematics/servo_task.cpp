@@ -32,6 +32,9 @@ void move_servo_speed_task_state_machine(void *pvParameters) {
 
     bool backlash_compensation=false;
     bool restart;
+    float appo;
+    //flag che indica se è stato ricevuto un nuovo comando nella direzione opposta a quello in esecuzione
+    bool reverse=false; 
     while (1) {
         // by passing the portMAX_DELAY to xQueueReceive, we ensure that the task will be blocked until
         // there is a new command in the queue
@@ -42,6 +45,7 @@ void move_servo_speed_task_state_machine(void *pvParameters) {
         cmd=sanitize_servo_command(msg);
         servo_data.moving.store(true);
         backlash_compensation=false;
+        reverse=false;
 
         do {
             restart = false;
@@ -69,6 +73,12 @@ void move_servo_speed_task_state_machine(void *pvParameters) {
             const float dir = (target > pos) ? 1.0f : -1.0f;
             float vel  = servo_data.current_speed.load();   // module of speed, always ≥ 0
             float acc  = servo_data.current_acc.load();   // acc with sign [rad/s²]: + accel, − decel
+            float prev_acc = acc; // previous acceleration
+
+            if (reverse){
+                vel=-vel;
+                acc=-acc;
+            }
 
             MotionPhase phase = PH_ACCEL_JUP;
             MotionPhase prev_phase = PH_ACCEL_JUP;
@@ -92,6 +102,11 @@ void move_servo_speed_task_state_machine(void *pvParameters) {
                     cmd = sanitize_servo_command(next);
                     // seting the flag to restart the FSM
                     restart = true;
+
+                    if ((cmd.target_rad > pos? 1.0f : -1.0f)*dir < 0.0f) {
+                        // il nuovo comando è nella direzione opposta
+                        reverse=true;
+                    }
                     // breaking the loop to restart the FSM with the new command
                     break;
                     // we have to preserve the previous state
@@ -115,9 +130,13 @@ void move_servo_speed_task_state_machine(void *pvParameters) {
                 // in caso di overshoot il servo si fermerà anche se la velocità non è 0
                 // in caso di undershoot la velocità non scenderà mai sotto un valore minimo per raggiungere
                 // in modo fluido il target
-                d_stop_curr = (acc > 0.0f)
-                    ? decel_distance_with_acc(vel, acc, a, j, cmd.speed)
-                    : decel_distance(vel, a, j, cmd.speed);
+                if (vel < 0.0f) {
+                    //in questo modo viene calcolata la distanza di arresto prima di poter invertire la direzione
+                    //d_stop_curr è negativa, in questo modo rem <= d_trig non sarà mai vero
+                    d_stop_curr = -decel_distance_with_acc(-vel, -acc, a, j, v);
+                } else {
+                    d_stop_curr = decel_distance_with_acc(vel, acc, a, j, v);
+                }
                 d_trig = d_stop_curr;
                 // in questo modo se durante l'esecuzione la fase cambia, vengono calcolati subito i nuovi parametri
                 do{
@@ -128,11 +147,11 @@ void move_servo_speed_task_state_machine(void *pvParameters) {
                     case PH_ACCEL_JUP:
                         //in base alla simulazione abbiamo appena lo spazio per fermarci
                         if (rem <= d_trig) { 
-                            ESP_LOGI("Servo", "Switching to decel_jup phase (remaining distance: %f, trigger distance: %f, acc: %f, vel: %f)", rem, d_trig, acc, vel);
+                            ESP_LOGI("Servo", "Switching to ACCEL_JDN phase (remaining distance: %f, trigger distance: %f, acc: %f, vel: %f)", rem, d_trig, acc, vel);
                             phase = PH_ACCEL_JDN;
                             break; 
                         }
-
+                        appo=acc;
                         acc += j * dt; //updating acceleration
 
                         if (acc >= a) { //capping acceleration to a
@@ -144,6 +163,7 @@ void move_servo_speed_task_state_machine(void *pvParameters) {
                             // v= velocità target, vel=velocità attuale
                             if (vel + (a * a) / (2.0f * j) >= v) {
                                 ESP_LOGI("Servo", "Switching to ACCEL_JDN phase (vp: %f, v: %f, acc: %f, vel: %f)", vel + (a * a) / (2.0f * j), v, acc, vel);
+                                acc=appo;
                                 phase = PH_ACCEL_JDN;
                             } else {
                                 ESP_LOGI("Servo", "Switching to ACCEL_CONST phase (vp: %f, v: %f, acc: %f, vel: %f)", vel + (a * a) / (2.0f * j), v, acc, vel);
@@ -212,7 +232,8 @@ void move_servo_speed_task_state_machine(void *pvParameters) {
                     
 
                     case PH_DECEL_JUP:
-                        // starting deceleration ramp: acc goes from 0 to -a
+                        // starting deceleration ramp: acc goes from 0 to -a'
+                        appo=acc;
                         acc -= j * dt;
                         if (acc < -a) acc = -a;
 
@@ -222,6 +243,7 @@ void move_servo_speed_task_state_machine(void *pvParameters) {
                         // che in questo caso è un triangolo, dunque v= h*b/2=a*(a/j)/2 = a^2/(2*j)
                         if (vel <= (acc * acc) / (2.0f * j)) {
                             ESP_LOGI("Servo", "Switching to DECEL_JDN phase (vel: %f, acc: %f, j: %f)", vel, acc, j);
+                            acc=appo;
                             phase = PH_DECEL_JDN;       // triangular profile
                             break;
                         } else if (acc <= -a) { // l'accelerazione raggiunta è quella massima, quindi possiamo passare alla fase di decelerazione costante
@@ -257,7 +279,10 @@ void move_servo_speed_task_state_machine(void *pvParameters) {
                 // quindi la distanza di decelerazione sarà più precisa e non ci saranno overshoot
 
                 // calculating new speed and position with protections
-                vel += acc * dt;
+                
+                //vel += acc * dt;
+
+
                 //in caso di undershoot il servo si fermerebbe prima di aver raggiunto il target
                 // in questo caso non si va mai sotto una velocità minima per poter raggiungere 
                 // il target in modo fluido
@@ -274,9 +299,15 @@ void move_servo_speed_task_state_machine(void *pvParameters) {
                         }
                     }
                 }
-                if (vel > v)    vel = v;
 
-                pos += dir * vel * dt;
+                //pos += dir * vel * dt;
+
+                pos+= dir* (vel * dt+0.5f*prev_acc * dt*dt+(1.0f/6.0f)*(acc-prev_acc)*dt*dt); // integrazione della velocità
+
+                
+                vel +=prev_acc * dt+ 0.5f * (acc - prev_acc) * dt; // trapezoidal integration of acceleration
+                if (vel > v)    vel = v;
+                prev_acc = acc;
 
                 // correcting overshoot
                 if ((dir > 0.0f && pos >= target) || (dir < 0.0f && pos <= target)) {
@@ -352,11 +383,12 @@ ServoTaskParams sanitize_servo_command(Msg* msg) {
         params.target_rad = msg->payload.payload_servo.radians;
     }
     // sanitizing input parameters to ensure they are within the servo limits
+    params.target_rad = fmaxf(servo_data.min_pos, fminf(servo_data.max_pos, params.target_rad));
     params.speed = msg->payload.payload_servo.speed>servo_data.max_speed?servo_data.max_speed:msg->payload.payload_servo.speed;
     params.acc = msg->payload.payload_servo.acceleration>servo_data.max_acc?servo_data.max_acc:msg->payload.payload_servo.acceleration;
     params.jerk = msg->payload.payload_servo.jerk>servo_data.max_jerk?servo_data.max_jerk:msg->payload.payload_servo.jerk;
     params.send_ack = msg->payload.payload_servo.send_ack;
-    delete msg; // free message allocated by UART layer
+    free_msg(msg); // free message allocated by UART layer
     return params;
 }
 

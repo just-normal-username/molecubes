@@ -25,7 +25,7 @@ typedef enum {
 #define min_speed 0.2f // minima velocità utilizzata per raggiungere il target in caso di undershoot
 
 // motion profile helpers
-float decel_distance_sim(float v_init, float acc_init, float a_max, float j_max, float v_max);
+//float decel_distance_sim(float v_init, float acc_init, float a_max, float j_max, float v_max);
 float decel_distance(float v, float a_max, float j_max, float v_max);
 float decel_distance_with_acc(float v, float a, float a_max, float j_max, float v_max);
 

@@ -19,8 +19,8 @@ static bool check_limits(const char* context) {
         ESP_LOGE("TEST", "%s: POSITION OUT OF RANGE: %f not in [%f, %f]", context, pos, servo_data.min_pos, servo_data.max_pos);
         ok = false;
     }
-    if (spd < -SPEED_EPS || spd > servo_data.max_speed + SPEED_EPS) {
-        ESP_LOGE("TEST", "%s: SPEED OUT OF RANGE: %f not in [0, %f]", context, spd, servo_data.max_speed);
+    if (spd < -(servo_data.max_speed + SPEED_EPS) || spd > servo_data.max_speed + SPEED_EPS) {
+        ESP_LOGE("TEST", "%s: SPEED OUT OF RANGE: %f not in [%f, %f]", context, spd, -servo_data.max_speed, servo_data.max_speed);
         ok = false;
     }
     if (fabsf(acc) > servo_data.max_acc + ACC_EPS) {
@@ -99,7 +99,7 @@ void test_reactivity() {
     
     // Invia ordine di andare a +1.0 rad
     send_movement_command(1.0f, 1.0f, servo_data.max_acc, servo_data.max_jerk);
-    vTaskDelay(pdMS_TO_TICKS(2000)); // Aspetta mezzo secondo
+    vTaskDelay(pdMS_TO_TICKS(500)); // Aspetta mezzo secondo
     
     // Invia ordine contrario: dovrebbe ignorare il primo e invertire
     send_movement_command(-1.0f, 2.0f, servo_data.max_acc, servo_data.max_jerk);

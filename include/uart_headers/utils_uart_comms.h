@@ -71,7 +71,7 @@ extern bool SHOW_UART_COMMS_LOGS;
 
 //code x tutti i tipi di comandi diversi
 //extern QueueHandle_t h_queue_ack;
-extern QueueHandle_t h_queue_command_02;
+extern QueueHandle_t h_queue_debug;
 extern QueueHandle_t h_queue_handshake;
 extern QueueHandle_t h_queue_report;
 extern QueueHandle_t h_queue_servo;
@@ -136,7 +136,7 @@ void print_ids_array();
 
 //* COMMANDS.CPP
 void task_execute_command_01(void *arg);
-void task_execute_command_02(void *arg);
+void task_execute_debug(void *arg);
 void task_execute_servo(void *arg);
 
 

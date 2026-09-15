@@ -25,7 +25,7 @@ bool SHOW_UART_COMMS_LOGS = false;
 // TaskHandle_t h_task_blink_led_once;
 //code x tutti i tipi di comandi diversi
 QueueHandle_t h_queue_command_01;
-QueueHandle_t h_queue_command_02;
+QueueHandle_t h_queue_debug;
 QueueHandle_t h_queue_handshake;
 QueueHandle_t h_queue_report;
 QueueHandle_t h_queue_servo;

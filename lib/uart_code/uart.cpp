@@ -12,10 +12,8 @@
 //*GLOBALS
 SemaphoreHandle_t master_buffer_mutex;
 SemaphoreHandle_t slave_buffer_mutex;
-SemaphoreHandle_t block_print_mutex;
 
 
-bool already_done = 0;
 //* _______________________________________ ON START INIT UART
 
 
@@ -56,8 +54,8 @@ void sort_new_msg(Msg *msg){
     if(msg->type == type_servo){
         ESP_LOGI("UART COMMS", "Sorting new message for target_id=%d, type=%d", msg->target_id, msg->type);
         xQueueSend(h_queue_servo, &msg, portMAX_DELAY);
-    }else if (msg->type == type_command_02){
-        xQueueSend(h_queue_command_02, &msg, portMAX_DELAY);
+    }else if (msg->type == type_debug){
+        xQueueSend(h_queue_debug, &msg, portMAX_DELAY);
     }else if (msg->type == type_handshake){
         xQueueSend(h_queue_handshake, &msg, portMAX_DELAY);
     }else if(msg->type == type_report){
@@ -251,7 +249,7 @@ void task_send_uart(void *arg){
         fflush(stdout);
     }
 
-    delete msg; 
+    free_msg(msg); 
   } 
 }
 
@@ -284,6 +282,7 @@ void free_msg(Msg* msg){
         if(SHOW_UART_COMMS_LOGS)
             printf("free_msg(): deleted %p\n", msg);
         delete msg;
+        msg=nullptr; //per sicurezza e evitare dangling pointers
     }
 }
 
@@ -310,6 +309,13 @@ void send_buffered_messages_to_master(){
 
 
 void send_msg_to_master(Msg* msg){
+    //guardia per evitare che la base, nel caso in cui riceve un messaggio sbagliato
+    //intasi il buffer del master
+    if (SELF_ID == ROOT_ID) {
+        ESP_LOGW("UART COMMS", "send_msg_to_master called on ROOT_ID, message will not be sent.");
+        free_msg(msg); // Avoid memory leak
+        return;
+    }
     xSemaphoreTake(master_buffer_mutex, portMAX_DELAY);
 
     if(MASTER_ID == UNKNOWN_ID && msg->type != type_handshake){ //!type_handshake passa in ogni caso
