@@ -22,8 +22,6 @@ bool already_done = 0;
 void init_uart_mutexes(){
     master_buffer_mutex = xSemaphoreCreateMutex();
     slave_buffer_mutex = xSemaphoreCreateMutex();
-    // block_print_mutex = xSemaphoreCreateMutex(); //crasha sempre il programma non ne vale la pena
-    // printf("blockprint_mutex: %p\n", (void*)block_print_mutex);
 }
 
 
@@ -96,7 +94,7 @@ void sort_new_msg(Msg *msg){
 }
 
 
-void task_receive_uart(void *arg) {
+void task_receive_uart(void *arg) { //todo fixare memory leak busy waiting, interrupt quando nel buffer ci sono n byte?
     uart_port_t selected_uart = (uart_port_t)(int32_t)arg;
     int flow_counter = 0; // Per distinguere i vari tentativi di ricezione
 
@@ -218,18 +216,18 @@ void task_receive_uart(void *arg) {
 //* _______________________________________UART SEND
 void task_send_uart(void *arg){
   uart_port_t selected_uart = (uart_port_t)(int32_t)arg;
+  QueueHandle_t selected_queue = nullptr;
+  if(selected_uart == U_WITH_MASTER){
+      selected_queue = h_queue_send_to_master;
+  }else if(selected_uart == U_WITH_SLAVE){
+      selected_queue = h_queue_send_to_slave;
+  }
 
   while (1) {
     Msg *msg = nullptr; 
-    QueueHandle_t selected_queue = nullptr;
-    if(selected_uart == U_WITH_MASTER){
-      selected_queue = h_queue_send_to_master;
-    }else if(selected_uart == U_WITH_SLAVE){
-      selected_queue = h_queue_send_to_slave;
-    }
-
+    
     xQueueReceive(selected_queue, &msg, portMAX_DELAY);
-
+    //todo check prima di inviare
     int bytes_sent = uart_write_bytes(selected_uart, (const void*)msg, sizeof(Msg));
     
     if(SHOW_UART_COMMS_LOGS){
