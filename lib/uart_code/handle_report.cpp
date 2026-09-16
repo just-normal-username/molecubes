@@ -83,7 +83,8 @@ void compute_ids_array(){
     }
 }
 
-
+//todo in questo modo però se dovessero arrivare report fuori ordine potrebbe succedere che un nodo intermedio
+//invii un report con slave sconosciuto 
 void remove_subtree_recursive(module_id_t node_id) {
     for (int j = 0; j < MAX_NODES; ++j) {
         if (is_dict_ix_empty[j]){

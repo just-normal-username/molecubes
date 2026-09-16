@@ -82,6 +82,9 @@ extern QueueHandle_t h_queue_servo;
 extern QueueHandle_t h_queue_send_to_slave;
 extern QueueHandle_t h_queue_send_to_master;
 
+//semaforo per il report
+extern SemaphoreHandle_t h_semaphore_report;
+
 
 //* INIT_COMUNICATION.CPP
 esp_err_t init_uart_comms();
@@ -122,7 +125,8 @@ void init_uart_mutexes();
 //* HANDLE_HANDSHAKE.CPP
 void task_ping_slave(void* info);
 void task_ping_master(void* info);
-void task_handle_handshakes(void* info);
+void handle_handshakes(Msg* msg);
+void send_report_to_root();
 
 
 //*HANDLE_REPORT.CPP

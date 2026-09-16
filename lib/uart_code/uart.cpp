@@ -12,6 +12,7 @@
 //*GLOBALS
 SemaphoreHandle_t master_buffer_mutex;
 SemaphoreHandle_t slave_buffer_mutex;
+SemaphoreHandle_t h_semaphore_report; //semaforo per la task che gestisce gli handshake
 
 
 //* _______________________________________ ON START INIT UART
@@ -20,6 +21,7 @@ SemaphoreHandle_t slave_buffer_mutex;
 void init_uart_mutexes(){
     master_buffer_mutex = xSemaphoreCreateMutex();
     slave_buffer_mutex = xSemaphoreCreateMutex();
+    h_semaphore_report = xSemaphoreCreateMutex();
 }
 
 
@@ -57,7 +59,7 @@ void sort_new_msg(Msg *msg){
     }else if (msg->type == type_debug){
         xQueueSend(h_queue_debug, &msg, portMAX_DELAY);
     }else if (msg->type == type_handshake){
-        xQueueSend(h_queue_handshake, &msg, portMAX_DELAY);
+        handle_handshakes(msg);
     }else if(msg->type == type_report){
         xQueueSend(h_queue_report, &msg, portMAX_DELAY);
     }else if(msg->type == type_servo_ack){ 
@@ -196,9 +198,23 @@ void task_receive_uart(void *arg) { //todo fixare memory leak busy waiting, inte
                 printf("[MSG_DBG] forwarding msg=%p to uart=%d (opposta=%d)\n", (void*)msg, (int)selected_uart, uart_opposta);
             }
             if(selected_uart == U_WITH_MASTER){
-              send_msg_to_slave(msg);
+                send_msg_to_slave(msg);
             }else if(selected_uart == U_WITH_SLAVE){
-              send_msg_to_master(msg);
+                if (msg->type == type_report) {
+                    //se ricevo un report dal mio slave (sono certo che sia lo slave perchè nel report c'è il mio id come master)
+                    //e il suo id è diverso da quello che ho vuol dire che è arrivato prima il report dell'handshake.
+                    //in questo caso allora aggiorno direttamente la topologia e invio un report aggiornato alla root
+                    //prima di inviare il report del mio slave, in questo modo sono sicuro che alla root arriverà prima
+                    //il report del mio modulo con lo slave aggiornato e poi il report del mio slave
+                    // in questo modo è impossibile che venga distrutto il sottoalbero di moduli che ho sotto di me.
+                    if (msg->payload.payload_report.my_master_id == SELF_ID.load() && SLAVE_ID.load() != msg->sender_id) {
+                        ESP_LOGW("UART COMMS", "Received report from %d but SLAVE_ID is UNKNOWN.", msg->sender_id);
+                        SLAVE_ID.store(msg->sender_id); 
+                        send_buffered_messages_to_slave();
+                        send_report_to_root();
+                    }
+                } 
+                send_msg_to_master(msg);
             }
         }
 

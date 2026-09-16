@@ -197,12 +197,6 @@ esp_err_t init_uart_comms(){
       ESP_LOGE("UART COMMS", "Failed to create task_ping_slave");
       return ESP_FAIL;
     }
-    
-    result = xTaskCreate(task_handle_handshakes, "task_handle_handshakes", 5000, nullptr, 24, &task_handle_handshakes_handle);
-    if (result != pdPASS) {
-      ESP_LOGE("UART COMMS", "Failed to create task_handle_handshakes");
-      return ESP_FAIL;
-    }
     result = xTaskCreate(task_handle_report, "task_handle_report", 5000, nullptr, 2, &task_handle_report_handle);
     if (result != pdPASS) {
       ESP_LOGE("UART COMMS", "Failed to create task_handle_report");
