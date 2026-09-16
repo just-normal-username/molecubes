@@ -331,8 +331,8 @@ queue<Msg*> slave_pre_init_buffer;
 void send_buffered_messages_to_slave(){
     // Same pattern as master: protect std::queue with semaphore but do the
     // potentially-blocking xQueueSend outside the critical section.
+    xSemaphoreTake(slave_buffer_mutex, portMAX_DELAY);
     while (1) {
-        xSemaphoreTake(slave_buffer_mutex, portMAX_DELAY);
         if (slave_pre_init_buffer.empty() || SLAVE_ID.load() == UNKNOWN_ID) {
             xSemaphoreGive(slave_buffer_mutex);
             break;
@@ -340,9 +340,8 @@ void send_buffered_messages_to_slave(){
         Msg* m = slave_pre_init_buffer.front();
         slave_pre_init_buffer.pop();
         xQueueSend(h_queue_send_to_slave, &m, portMAX_DELAY); //! fix: ho rimesso questa riga dentro al semaforo
-
-        xSemaphoreGive(slave_buffer_mutex);
     }
+    xSemaphoreGive(slave_buffer_mutex);
 }
 
  //todo aggiungere guardia per il report, perchè è vero che non viene generato

@@ -42,11 +42,11 @@ const int PING_MASTER_WAIT_FOR_ACK_MAX_DELAY = 1500;
 const int PING_SLAVE_SEND_NEW_HANDSHAKE_DELAY = 1000;
 const int PING_MASTER_SEND_NEW_HANDSHAKE_DELAY = 1000;
 
-volatile int last_MtS_ack_sender_id = -1;
-volatile bool received_MtS_ack = false;
+std::atomic<int> last_MtS_ack_sender_id = -1;
+std::atomic<bool> received_MtS_ack = false;
 
-volatile int last_StM_ack_sender_id = -1;
-volatile bool received_StM_ack = false;
+std::atomic<int> last_StM_ack_sender_id = -1;
+std::atomic<bool> received_StM_ack = false;
 
 
 void task_ping_slave(void* info){ // mando MtS a slave
@@ -55,7 +55,7 @@ void task_ping_slave(void* info){ // mando MtS a slave
     p.payload_handshake.handshake_type = type_MtS;
     Msg* msg = create_msg(SELF_ID.load(), UNKNOWN_ID, type_handshake, p); 
 
-    received_MtS_ack = false; 
+    received_MtS_ack.store(false); 
     /*
     type_MtS ->
     type_StM <-
@@ -67,11 +67,11 @@ void task_ping_slave(void* info){ // mando MtS a slave
     
     ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(PING_SLAVE_WAIT_FOR_ACK_MAX_DELAY)); //!NOTIFY
 
-    if(received_MtS_ack){ // slave esiste
-      if(last_MtS_ack_sender_id != SLAVE_ID.load()){ // è diverso da slave ID
-        printf(">>> SLAVE CHANGED FROM %d TO %d\n", SLAVE_ID.load(), last_MtS_ack_sender_id);
+    if(received_MtS_ack.load()){ // slave esiste
+      if(last_MtS_ack_sender_id.load() != SLAVE_ID.load()){ // è diverso da slave ID
+        printf(">>> SLAVE CHANGED FROM %d TO %d\n", SLAVE_ID.load(), last_MtS_ack_sender_id.load());
 
-        SLAVE_ID.store(last_MtS_ack_sender_id); 
+        SLAVE_ID.store(last_MtS_ack_sender_id.load()); 
         send_buffered_messages_to_slave();
         send_report_to_root();
       }
@@ -96,17 +96,17 @@ void task_ping_master(void* info){
     p.payload_handshake.handshake_type = type_StM;
     Msg* msg = create_msg(SELF_ID.load(), UNKNOWN_ID, type_handshake, p); 
 
-    received_StM_ack = false; 
+    received_StM_ack.store(false); 
     module_id_t MASTER_ID_WHEN_I_SENT_THE_MESSAGE = MASTER_ID.load();
     send_msg_to_master(msg);
 
     ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(PING_MASTER_WAIT_FOR_ACK_MAX_DELAY)); //!NOTIFY
     
-    if(received_StM_ack){ // master esiste
-      if(last_StM_ack_sender_id != MASTER_ID.load()){ // è diverso da master ID
-        printf(">>> MASTER CHANGED FROM %d TO %d\n", MASTER_ID.load(), last_StM_ack_sender_id);
+    if(received_StM_ack.load()){ // master esiste
+      if(last_StM_ack_sender_id.load() != MASTER_ID.load()){ // è diverso da master ID
+        printf(">>> MASTER CHANGED FROM %d TO %d\n", MASTER_ID.load(), last_StM_ack_sender_id.load());
 
-        MASTER_ID.store(last_StM_ack_sender_id); 
+        MASTER_ID.store(last_StM_ack_sender_id.load()); 
         send_buffered_messages_to_master();
         send_report_to_root();
       }
@@ -141,8 +141,8 @@ void task_handle_handshakes(void* info){
       }
 
     } else if(msg->payload.payload_handshake.handshake_type == type_MtS_ack){
-      last_MtS_ack_sender_id = msg->sender_id;
-      received_MtS_ack = true; // FIX: consistency (true instead of 1)
+      last_MtS_ack_sender_id.store(msg->sender_id);
+      received_MtS_ack.store(true); // FIX: consistency (true instead of 1)
 
       if(SHOW_UART_COMMS_LOGS)
         printf("DOVREI SVEGLIARMI\n");
@@ -165,8 +165,8 @@ void task_handle_handshakes(void* info){
       }
 
     } else if(msg->payload.payload_handshake.handshake_type == type_StM_ack){
-      last_StM_ack_sender_id = msg->sender_id;
-      received_StM_ack = true; 
+      last_StM_ack_sender_id.store(msg->sender_id);
+      received_StM_ack.store(true); 
 
       if(SHOW_UART_COMMS_LOGS)
         printf("DOVREI SVEGLIARMI\n");
