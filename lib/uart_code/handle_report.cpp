@@ -160,7 +160,7 @@ void init_report_handler(int* default_ids, int default_ids_len, bool use_default
 }
 
 void task_handle_report(void* arg){
-  if(SELF_ID != ROOT_ID){ //it shouldn't be the case.
+  if(SELF_ID.load() != ROOT_ID){ //it shouldn't be the case.
     task_handle_report_handle = NULL;
     vTaskDelete(nullptr);
   }

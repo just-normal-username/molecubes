@@ -14,12 +14,12 @@
 
 void send_report_to_root(){
   Payload p;
-  p.payload_report.my_id = SELF_ID;
-  p.payload_report.my_master_id = MASTER_ID;
-  p.payload_report.my_slave_id = SLAVE_ID;
+  p.payload_report.my_id = SELF_ID.load();
+  p.payload_report.my_master_id = MASTER_ID.load();
+  p.payload_report.my_slave_id = SLAVE_ID.load();
 
   // If I'm the root, handle the report locally
-  if(SELF_ID == ROOT_ID){
+  if(SELF_ID.load() == ROOT_ID){
     receive_new_report(p.payload_report); //chiami direttamente il modulo
     return;
   }
@@ -27,12 +27,12 @@ void send_report_to_root(){
   // If I don't yet know my master, defer sending a report to avoid
   // producing stale reports that would later overwrite a fresher state
   // on the root (see issue with buffered reports).
-  if(MASTER_ID == UNKNOWN_ID){
-    printf("[HANDSHAKE] MASTER unknown for SELF %d, deferring report\n", SELF_ID);
+  if(MASTER_ID.load() == UNKNOWN_ID){
+    printf("[HANDSHAKE] MASTER unknown for SELF %d, deferring report\n", SELF_ID.load());
     return;
   }
 
-  Msg* m = create_msg(SELF_ID, ROOT_ID, type_report, p);
+  Msg* m = create_msg(SELF_ID.load(), ROOT_ID, type_report, p);
   send_msg_to_master(m);
 }
 
@@ -53,7 +53,7 @@ void task_ping_slave(void* info){ // mando MtS a slave
   while(1){
     Payload p;
     p.payload_handshake.handshake_type = type_MtS;
-    Msg* msg = create_msg(SELF_ID, UNKNOWN_ID, type_handshake, p); 
+    Msg* msg = create_msg(SELF_ID.load(), UNKNOWN_ID, type_handshake, p); 
 
     received_MtS_ack = false; 
     /*
@@ -62,22 +62,22 @@ void task_ping_slave(void* info){ // mando MtS a slave
     TIMEOUT - NO RESPONSE
     Even if it doesnt have a response it knows not to delete the new slave
     */
-    module_id_t SLAVE_ID_WHEN_I_SENT_THE_MESSAGE = SLAVE_ID; 
+    module_id_t SLAVE_ID_WHEN_I_SENT_THE_MESSAGE = SLAVE_ID.load(); 
     send_msg_to_slave(msg);
     
     ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(PING_SLAVE_WAIT_FOR_ACK_MAX_DELAY)); //!NOTIFY
 
     if(received_MtS_ack){ // slave esiste
-      if(last_MtS_ack_sender_id != SLAVE_ID){ // è diverso da slave ID
-        printf(">>> SLAVE CHANGED FROM %d TO %d\n", SLAVE_ID, last_MtS_ack_sender_id);
+      if(last_MtS_ack_sender_id != SLAVE_ID.load()){ // è diverso da slave ID
+        printf(">>> SLAVE CHANGED FROM %d TO %d\n", SLAVE_ID.load(), last_MtS_ack_sender_id);
 
-        SLAVE_ID = last_MtS_ack_sender_id; 
+        SLAVE_ID.store(last_MtS_ack_sender_id); 
         send_buffered_messages_to_slave();
         send_report_to_root();
       }
     } else if(SLAVE_ID_WHEN_I_SENT_THE_MESSAGE != UNKNOWN_ID) { // slave non esiste
-      printf(">>> SLAVE %d DOESNT RESPOND, I ASSUME HE ISNT THERE (SLAVE_ID = -1)\n", SLAVE_ID);
-      SLAVE_ID = UNKNOWN_ID; 
+      printf(">>> SLAVE %d DOESNT RESPOND, I ASSUME HE ISNT THERE (SLAVE_ID = -1)\n", SLAVE_ID.load());
+      SLAVE_ID.store(UNKNOWN_ID); 
       send_report_to_root();
     }
 
@@ -87,32 +87,32 @@ void task_ping_slave(void* info){ // mando MtS a slave
 
 
 void task_ping_master(void* info){ 
-  if(SELF_ID == ROOT_ID){ //it shouldn't be the case.
+  if(SELF_ID.load() == ROOT_ID){ //it shouldn't be the case.
     task_ping_master_handle = NULL;
     vTaskDelete(nullptr);
   }
   while(1){
     Payload p;
     p.payload_handshake.handshake_type = type_StM;
-    Msg* msg = create_msg(SELF_ID, UNKNOWN_ID, type_handshake, p); 
+    Msg* msg = create_msg(SELF_ID.load(), UNKNOWN_ID, type_handshake, p); 
 
     received_StM_ack = false; 
-    module_id_t MASTER_ID_WHEN_I_SENT_THE_MESSAGE = MASTER_ID;
+    module_id_t MASTER_ID_WHEN_I_SENT_THE_MESSAGE = MASTER_ID.load();
     send_msg_to_master(msg);
 
     ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(PING_MASTER_WAIT_FOR_ACK_MAX_DELAY)); //!NOTIFY
     
     if(received_StM_ack){ // master esiste
-      if(last_StM_ack_sender_id != MASTER_ID){ // è diverso da master ID
-        printf(">>> MASTER CHANGED FROM %d TO %d\n", MASTER_ID, last_StM_ack_sender_id);
+      if(last_StM_ack_sender_id != MASTER_ID.load()){ // è diverso da master ID
+        printf(">>> MASTER CHANGED FROM %d TO %d\n", MASTER_ID.load(), last_StM_ack_sender_id);
 
-        MASTER_ID = last_StM_ack_sender_id; 
+        MASTER_ID.store(last_StM_ack_sender_id); 
         send_buffered_messages_to_master();
         send_report_to_root();
       }
     } else if(MASTER_ID_WHEN_I_SENT_THE_MESSAGE != UNKNOWN_ID) { // master non esiste
-      printf(">>> MASTER %d DOESNT RESPOND, I ASSUME HE ISNT THERE (MASTER_ID = -1)\n", MASTER_ID);
-      MASTER_ID = UNKNOWN_ID; 
+      printf(">>> MASTER %d DOESNT RESPOND, I ASSUME HE ISNT THERE (MASTER_ID = -1)\n", MASTER_ID.load());
+      MASTER_ID.store(UNKNOWN_ID); 
       // todo NON MANDARE IL REPORT NON PUO GESTIRLO
     }
 
@@ -129,13 +129,13 @@ void task_handle_handshakes(void* info){
     if(msg->payload.payload_handshake.handshake_type == type_MtS){ //* il master fa ciao rispondigli
       Payload p;
       p.payload_handshake.handshake_type = type_MtS_ack;
-      Msg* nm = create_msg(SELF_ID, UNKNOWN_ID, type_handshake, p);
+      Msg* nm = create_msg(SELF_ID.load(), UNKNOWN_ID, type_handshake, p);
       send_msg_to_master(nm);
 
-      if(msg->sender_id != MASTER_ID){
+      if(msg->sender_id != MASTER_ID.load()){
         if(SHOW_UART_COMMS_LOGS){
-          printf(">>> MASTER CHANGED FROM %d TO %d\n", MASTER_ID, msg->sender_id);}
-        MASTER_ID = msg->sender_id; 
+          printf(">>> MASTER CHANGED FROM %d TO %d\n", MASTER_ID.load(), msg->sender_id);}
+        MASTER_ID.store(msg->sender_id); 
         send_buffered_messages_to_master(); //! fix: ho invertito questa righa e quella dopo
         send_report_to_root(); //so che non è -1 in quanto ho ricevuto un messaggio da qualcuno; 
       }
@@ -153,13 +153,13 @@ void task_handle_handshakes(void* info){
     } else if(msg->payload.payload_handshake.handshake_type == type_StM){  //* lo slave fa ciao rispondigli
       Payload p;
       p.payload_handshake.handshake_type = type_StM_ack;
-      Msg* nm = create_msg(SELF_ID, UNKNOWN_ID, type_handshake, p);
+      Msg* nm = create_msg(SELF_ID.load(), UNKNOWN_ID, type_handshake, p);
       send_msg_to_slave(nm);
 
-      if(msg->sender_id != SLAVE_ID){
+      if(msg->sender_id != SLAVE_ID.load()){
         if(SHOW_UART_COMMS_LOGS)
-          printf(">>> SLAVE CHANGED FROM %d TO %d\n", SLAVE_ID, msg->sender_id);
-        SLAVE_ID = msg->sender_id; 
+          printf(">>> SLAVE CHANGED FROM %d TO %d\n", SLAVE_ID.load(), msg->sender_id);
+        SLAVE_ID.store(msg->sender_id); 
         send_buffered_messages_to_slave(); //! fix: ho invertito questa righa e quella dopo
         send_report_to_root();
       }

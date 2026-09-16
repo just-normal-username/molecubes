@@ -79,7 +79,7 @@ esp_err_t convert_servo_instructions(const Command& command){
             if (group_number>1){
                 Payload group_payload{};
                 group_payload.payload_group.group_number = group_number;
-                Msg* msg = create_msg(SELF_ID, SELF_ID, type_group, group_payload);
+                Msg* msg = create_msg(SELF_ID.load(), SELF_ID.load(), type_group, group_payload);
                 if (h_queue_cmd_buffer!=NULL){
                     if ( xQueueSend(h_queue_cmd_buffer, &msg, 0) != pdTRUE) { // aggiunge il nuovo comando al buffer, se è pieno ritorna subito
                         ESP_LOGW("SERVO_API", "impossibile aggiungere il comando al buffer, coda piena");
@@ -141,14 +141,14 @@ esp_err_t convert_servo_instructions(const Command& command){
                             p.payload_servo.jerk
                         );
                         //inserimento del comando nel buffer
-                        if (target_id == SELF_ID) {
+                        if (target_id == SELF_ID.load()) {
                             
-                            if (create_and_buffer_msg(SELF_ID, SELF_ID, p)!= ESP_OK){
+                            if (create_and_buffer_msg(SELF_ID.load(), SELF_ID.load(), p)!= ESP_OK){
                                 return ESP_FAIL;
                             }
 
                         } else {
-                            if (create_and_buffer_msg(SELF_ID, target_id, p)!= ESP_OK){
+                            if (create_and_buffer_msg(SELF_ID.load(), target_id, p)!= ESP_OK){
                                 return ESP_FAIL;
                             }
                         }
@@ -170,12 +170,12 @@ esp_err_t convert_servo_instructions(const Command& command){
             // setta il flag per il comando di posizione relativo
             p.payload_servo.relative=relative;
             p.payload_servo.send_ack=true; // setta il flag per l'invio dell'ack
-            if (target_id == SELF_ID) {
-                if (create_and_buffer_msg(SELF_ID, SELF_ID, p)!= ESP_OK){
+            if (target_id == SELF_ID.load()) {
+                if (create_and_buffer_msg(SELF_ID.load(), SELF_ID.load(), p)!= ESP_OK){
                     return ESP_FAIL;
                 }
             } else {
-                if (create_and_buffer_msg(SELF_ID, target_id, p)!= ESP_OK){
+                if (create_and_buffer_msg(SELF_ID.load(), target_id, p)!= ESP_OK){
                     return ESP_FAIL;
                 }
             }
@@ -214,7 +214,7 @@ esp_err_t convert_servo_instructions(const Command& command){
             ESP_LOGI("SERVO_API", "G4 command received");
             p.payload_g4.millis = static_cast<uint32_t>(command.values[0]);
             // It's for the Root: send to the local servo queue
-            Msg* msg = create_msg(SELF_ID, SELF_ID, type_g4, p);
+            Msg* msg = create_msg(SELF_ID.load(), SELF_ID.load(), type_g4, p);
             if (h_queue_cmd_buffer!=NULL){
                 if ( xQueueSend(h_queue_cmd_buffer, &msg, 0) != pdTRUE) { // aggiunge il nuovo comando al buffer, se è pieno ritorna subito
                     ESP_LOGW("SERVO_API", "impossibile aggiungere il comando al buffer, coda piena");

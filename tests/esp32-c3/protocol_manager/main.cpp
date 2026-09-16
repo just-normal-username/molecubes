@@ -160,7 +160,7 @@ esp_err_t test_buffer_overload(){
         vTaskDelay(pdMS_TO_TICKS(20));
     }
     Payload p{};
-    Msg* msg = create_msg(SELF_ID, SELF_ID, type_servo, p);
+    Msg* msg = create_msg(SELF_ID.load(), SELF_ID.load(), type_servo, p);
     if (xQueueSend(h_queue_cmd_buffer, &msg, 0) != pdTRUE) {
         ESP_LOGE("TEST", "Fallito a eseguire il test di buffer overload, la coda non è piena dopo 198 comandi.");
         ProtocolManager::handle_incoming("M505");

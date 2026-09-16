@@ -178,9 +178,9 @@ void task_receive_uart(void *arg) { //todo fixare memory leak busy waiting, inte
         if(SHOW_UART_COMMS_LOGS)
             printf("\n================[RECEIVE UART]================\n");
         const char* role = get_role_name(selected_uart);
-        if(msg->target_id == SELF_ID || msg->target_id == -1){ //! in ogni caso se -1 lo prendo io
+        if(msg->target_id == SELF_ID.load() || msg->target_id == -1){ //! in ogni caso se -1 lo prendo io
             if(SHOW_UART_COMMS_LOGS){
-                printf("ID: %d | RICEVUTO DA: %s | DESTINAZIONE: ME\n", SELF_ID, role);
+                printf("ID: %d | RICEVUTO DA: %s | DESTINAZIONE: ME\n", SELF_ID.load(), role);
                 print_msg_struct(msg);
                 printf("[MSG_DBG] sort_new_msg enqueue msg=%p type=%d sender=%d target=%d\n", (void*)msg, msg->type, msg->sender_id, msg->target_id);
             }
@@ -188,10 +188,10 @@ void task_receive_uart(void *arg) { //todo fixare memory leak busy waiting, inte
         } else { 
             int uart_opposta = (int)!(bool)selected_uart;
             const char* tpr = get_role_name(uart_opposta);
-            bool esiste = !(((int)uart_opposta == (int)UART_NUM_1 && SLAVE_ID == -1) || ((int)uart_opposta == (int)UART_NUM_0 && MASTER_ID == -1));
+            bool esiste = !(((int)uart_opposta == (int)UART_NUM_1 && SLAVE_ID.load() == -1) || ((int)uart_opposta == (int)UART_NUM_0 && MASTER_ID.load() == -1));
             
             if(SHOW_UART_COMMS_LOGS){
-                printf("ID: %d | RICEVUTO DA: %s | FORWARD TO: %s (PRESENTE: %d)\n", SELF_ID, role, tpr, esiste);
+                printf("ID: %d | RICEVUTO DA: %s | FORWARD TO: %s (PRESENTE: %d)\n", SELF_ID.load(), role, tpr, esiste);
                 print_msg_struct(msg);
                 printf("[MSG_DBG] forwarding msg=%p to uart=%d (opposta=%d)\n", (void*)msg, (int)selected_uart, uart_opposta);
             }
@@ -231,7 +231,7 @@ void task_send_uart(void *arg){
     if(SHOW_UART_COMMS_LOGS){
         printf("\n================[SEND UART]================\n");
         const char* role = get_role_name(selected_uart);
-        printf("SONO: %d, HO INVIATO INVIO A: %s, IL SEGUENTE MESSAGGIO:\n", SELF_ID, role);
+        printf("SONO: %d, HO INVIATO INVIO A: %s, IL SEGUENTE MESSAGGIO:\n", SELF_ID.load(), role);
         print_msg_struct(msg);
         if (bytes_sent != sizeof(Msg)) {
             printf("ERRORE: inviati %d byte su %d\n", bytes_sent, sizeof(Msg));
@@ -289,36 +289,34 @@ void free_msg(Msg* msg){
 
 // accumula tutti i messaggi che non puo inviare al suo master xche non lo conosce
 queue<Msg*> master_pre_init_buffer; 
-void send_buffered_messages_to_master(){
+void send_buffered_messages_to_master(){ //todo fix busy waiting
     // Pop items from the buffered queue in a thread-safe way. Do NOT hold
     // the mutex while calling xQueueSend because xQueueSend can block and
     // would prevent other tasks from pushing into the buffer.
+    xSemaphoreTake(master_buffer_mutex, portMAX_DELAY);
     while (1) {
-        xSemaphoreTake(master_buffer_mutex, portMAX_DELAY);
-        if (master_pre_init_buffer.empty() || MASTER_ID == UNKNOWN_ID) {
+        if (master_pre_init_buffer.empty() || MASTER_ID.load() == UNKNOWN_ID) {
             xSemaphoreGive(master_buffer_mutex);
             break;
         }
         Msg* m = master_pre_init_buffer.front();
         master_pre_init_buffer.pop();
         xQueueSend(h_queue_send_to_master, &m, portMAX_DELAY); //! fix: ho rimesso questa riga dentro al semaforo
-        
-        xSemaphoreGive(master_buffer_mutex);
     }
+    xSemaphoreGive(master_buffer_mutex);
 }
 
 
 void send_msg_to_master(Msg* msg){
+    xSemaphoreTake(master_buffer_mutex, portMAX_DELAY);
     //guardia per evitare che la base, nel caso in cui riceve un messaggio sbagliato
     //intasi il buffer del master
-    if (SELF_ID == ROOT_ID) {
+    if (SELF_ID.load() == ROOT_ID) {
         ESP_LOGW("UART COMMS", "send_msg_to_master called on ROOT_ID, message will not be sent.");
         free_msg(msg); // Avoid memory leak
         return;
     }
-    xSemaphoreTake(master_buffer_mutex, portMAX_DELAY);
-
-    if(MASTER_ID == UNKNOWN_ID && msg->type != type_handshake){ //!type_handshake passa in ogni caso
+    if(MASTER_ID.load() == UNKNOWN_ID && msg->type != type_handshake){ //!type_handshake passa in ogni caso
         master_pre_init_buffer.push(msg);
     } else {
         xQueueSend(h_queue_send_to_master, &msg, portMAX_DELAY);
@@ -335,7 +333,7 @@ void send_buffered_messages_to_slave(){
     // potentially-blocking xQueueSend outside the critical section.
     while (1) {
         xSemaphoreTake(slave_buffer_mutex, portMAX_DELAY);
-        if (slave_pre_init_buffer.empty() || SLAVE_ID == UNKNOWN_ID) {
+        if (slave_pre_init_buffer.empty() || SLAVE_ID.load() == UNKNOWN_ID) {
             xSemaphoreGive(slave_buffer_mutex);
             break;
         }
@@ -347,10 +345,13 @@ void send_buffered_messages_to_slave(){
     }
 }
 
-
+ //todo aggiungere guardia per il report, perchè è vero che non viene generato
+ //se un cubo ha un master sconosciuto, ma se un cubo che ha il master sconosciuto
+ //riceve un report da un altro cubo, lo inoltra al suo master
+ //sconosciuto e quindi possono essere inviate informazioni errate.
 void send_msg_to_slave(Msg* msg){
     xSemaphoreTake(slave_buffer_mutex, portMAX_DELAY);
-    if(SLAVE_ID == UNKNOWN_ID && msg->type != type_handshake){ //!type_handshake passa in ogni caso
+    if(SLAVE_ID.load() == UNKNOWN_ID && msg->type != type_handshake){ //!type_handshake passa in ogni caso
         slave_pre_init_buffer.push(msg);
     } else {
         xQueueSend(h_queue_send_to_slave, &msg, portMAX_DELAY);

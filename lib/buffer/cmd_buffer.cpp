@@ -70,7 +70,7 @@ void buffer_task(void *pvParameters) {
                             ESP_LOGD("CMD_BUFFER", "ack_to_receive prima fetch_add: %d", ack_to_receive.load());
                             ack_to_receive.fetch_add(1);
                             ESP_LOGD("CMD_BUFFER", "ack_to_receive dopo fetch_add: %d", ack_to_receive.load());
-                            if (msg->target_id == SELF_ID) {
+                            if (msg->target_id == SELF_ID.load()) {
                                 ESP_LOGD("CMD_BUFFER", "Command is for SELF_ID, sorting locally.");
                                 // It's for the Root: send to the local servo queue
                                 sort_new_msg(msg);

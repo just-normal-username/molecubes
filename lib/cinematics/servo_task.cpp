@@ -11,9 +11,9 @@
 
 void send_movement_ack(){
     PayloadServoAck ack;
-    ack.sender_id=SELF_ID;
-    Msg* msg = create_msg(SELF_ID, ROOT_ID, type_servo_ack, Payload{.payload_servo_ack=ack});
-    if (SELF_ID==ROOT_ID){
+    ack.sender_id=SELF_ID.load();
+    Msg* msg = create_msg(SELF_ID.load(), ROOT_ID, type_servo_ack, Payload{.payload_servo_ack=ack});
+    if (SELF_ID.load()==ROOT_ID){
         sort_new_msg(msg);
     }
     send_msg_to_master(msg);
@@ -349,7 +349,7 @@ void move_servo_speed_task_state_machine(void *pvParameters) {
             p.payload_servo.acceleration=10.0f;
             p.payload_servo.jerk=30.0f;
             p.payload_servo.send_ack=true;
-            Msg* backlash_cmd=create_msg(SELF_ID, SELF_ID, type_servo, p);
+            Msg* backlash_cmd=create_msg(SELF_ID.load(), SELF_ID.load(), type_servo, p);
             ESP_LOGI("Servo", "Backlash compensation: moving back to target=%.4f", cmd.target_rad);
             xQueueSend(h_queue_servo, &backlash_cmd, 0); // we can send the command directly to the queue, the FSM will take care of executing it immediately
         }
@@ -422,7 +422,7 @@ esp_err_t servo_init(){
     p.payload_servo.acceleration=servo_data.max_acc;
     p.payload_servo.jerk=servo_data.max_jerk;
     p.payload_servo.send_ack=false;
-    Msg* init_cmd=create_msg(SELF_ID, SELF_ID, type_servo, p);
+    Msg* init_cmd=create_msg(SELF_ID.load(), SELF_ID.load(), type_servo, p);
     xQueueSend(h_queue_servo, &init_cmd, 0); //moving the servo to the initial position with max speed, acc and jerk to ensure a fast initialization
     vTaskDelay(pdMS_TO_TICKS(1000));
     return ESP_OK;

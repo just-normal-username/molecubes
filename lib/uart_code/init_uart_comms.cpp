@@ -50,20 +50,21 @@ esp_err_t init_uart_comms(){
     mac_str += buf;
   }
   if (mac_str == "0C4EA0653DD0"){
-    SELF_ID = 0;
+    SELF_ID.store(0);
   }
   else if (mac_str == "0C4EA0652684"){
-    SELF_ID = 1;
+    SELF_ID.store(1);
   }
   else if (mac_str == "0C4EA064B084"){
-    SELF_ID = 2;
+    SELF_ID.store(2);
   }
   else if (mac_str == "0C4EA0653E18"){
-    SELF_ID = 3;
+    SELF_ID.store(3);
   }
   else{
     ESP_LOGI("MAC","MAC Address not recognized: %s\n", mac_str.c_str());
-    SELF_ID = -1; // Unknown ID
+    SELF_ID.store(-1); // Unknown ID
+    return ESP_FAIL; // Return an error code to indicate failure
   }
 
   //*LOGS
@@ -84,20 +85,20 @@ esp_err_t init_uart_comms(){
 
   int32_t LED_LOOP_DELAY = 5000;
 
-  if(SELF_ID == 0){ 
-    MASTER_ID = -1;
+  if(SELF_ID.load() == 0){ 
+    MASTER_ID.store(-1);
 
-    if(USE_DEFAULT_IDS) SLAVE_ID = 1;
-  }else if(SELF_ID == 1){
+    if(USE_DEFAULT_IDS) SLAVE_ID.store(1);
+  }else if(SELF_ID.load() == 1){
 
     if(USE_DEFAULT_IDS){
-      MASTER_ID = 0;
-      SLAVE_ID = 2;
+      MASTER_ID.store(0);
+      SLAVE_ID.store(2);
     }
-  }else if(SELF_ID == 2){
+  }else if(SELF_ID.load() == 2){
     if(USE_DEFAULT_IDS){
-      MASTER_ID = 2;
-      SLAVE_ID = -1;
+      MASTER_ID.store(2);
+      SLAVE_ID.store(-1);
     }
   }
 
@@ -154,7 +155,7 @@ esp_err_t init_uart_comms(){
   init_uart_mutexes();
   init_uart((uart_port_t)U_WITH_SLAVE, FROM_SLAVE_RX, TO_SLAVE_TX);
   //protezione per non inizializzare l'uart con il master se è la root
-  if (SELF_ID != ROOT_ID) {
+  if (SELF_ID.load() != ROOT_ID) {
     init_uart((uart_port_t)U_WITH_MASTER, FROM_MASTER_RX, TO_MASTER_TX);
     result = xTaskCreate(task_receive_uart, "task_receive_uart_master", 10000, (void*)U_WITH_MASTER, 2, &task_receive_uart_master_handle);
     if (result != pdPASS) {
@@ -210,7 +211,7 @@ esp_err_t init_uart_comms(){
   }
   
 
-  if(SELF_ID == ROOT_ID && LOOP_PRINT_IDS_ARRAY){
+  if(SELF_ID.load() == ROOT_ID && LOOP_PRINT_IDS_ARRAY){
     result = xTaskCreate(task_loop_print_ids_array, "task_loop_print_ids_array", 2000, nullptr, 5, &task_loop_print_ids_array_handle);
     if (result != pdPASS) {
       ESP_LOGE("UART COMMS", "Failed to create task_loop_print_ids_array");

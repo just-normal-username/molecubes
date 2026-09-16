@@ -58,7 +58,7 @@ void send_movement_command(float target_rad, float speed, float acc, float jerk)
     p.payload_servo.relative = false; // absolute position command
     p.payload_servo.send_ack = true; // request acknowledgment
 
-    Msg* msg = create_msg(SELF_ID, SELF_ID, type_servo, p);
+    Msg* msg = create_msg(SELF_ID.load(), SELF_ID.load(), type_servo, p);
     xQueueSend(h_queue_servo, &msg, portMAX_DELAY);
 }
 

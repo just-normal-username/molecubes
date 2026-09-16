@@ -57,9 +57,9 @@ typedef struct {
 
 //* GLOBAL_VARS.CPP
 extern uint8_t mac[6];
-extern module_id_t MASTER_ID; 
-extern module_id_t SELF_ID;
-extern module_id_t SLAVE_ID;
+extern std::atomic<module_id_t> MASTER_ID; 
+extern std::atomic<module_id_t> SELF_ID;
+extern std::atomic<module_id_t> SLAVE_ID;
 
 extern bool BLINK_ON_RECEIVE_MSG; 
 extern bool BLINK_ON_SEND_MSG;

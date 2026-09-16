@@ -10,12 +10,13 @@
 
 #include "msg_structs.h"
 #include "utils_uart_comms.h"
+#include "id_type.h"
 
 
 uint8_t mac[6];
-module_id_t MASTER_ID = UNKNOWN_ID;
-module_id_t SELF_ID = UNKNOWN_ID;
-module_id_t SLAVE_ID = UNKNOWN_ID;
+std::atomic<module_id_t> MASTER_ID = UNKNOWN_ID;
+std::atomic<module_id_t> SELF_ID = UNKNOWN_ID;
+std::atomic<module_id_t> SLAVE_ID = UNKNOWN_ID;
 
 bool BLINK_ON_RECEIVE_MSG = false;
 bool BLINK_ON_SEND_MSG = false;
