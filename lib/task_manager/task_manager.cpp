@@ -16,7 +16,6 @@ TaskHandle_t task_send_uart_master_handle= NULL;
 TaskHandle_t task_send_uart_slave_handle= NULL;
 TaskHandle_t task_ping_slave_handle= NULL;
 TaskHandle_t task_ping_master_handle= NULL;
-TaskHandle_t task_handle_report_handle= NULL;
 TaskHandle_t task_loop_print_ids_array_handle= NULL;
 
 //servo
@@ -62,11 +61,6 @@ void terminate_every_task(){
         ESP_LOGI("TASK_MANAGER", "Terminating UART ping master task...");
         vTaskDelete(task_ping_master_handle);
         task_ping_master_handle = NULL;
-    }
-    if (task_handle_report_handle != NULL) {
-        ESP_LOGI("TASK_MANAGER", "Terminating UART handle report task...");
-        vTaskDelete(task_handle_report_handle);
-        task_handle_report_handle = NULL;
     }
     if (task_loop_print_ids_array_handle != NULL) {
         ESP_LOGI("TASK_MANAGER", "Terminating UART loop print ids array task...");

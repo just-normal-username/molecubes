@@ -14,7 +14,6 @@ extern TaskHandle_t task_send_uart_master_handle;
 extern TaskHandle_t task_send_uart_slave_handle;
 extern TaskHandle_t task_ping_slave_handle;
 extern TaskHandle_t task_ping_master_handle;
-extern TaskHandle_t task_handle_report_handle;
 extern TaskHandle_t task_loop_print_ids_array_handle;
 
 //servo

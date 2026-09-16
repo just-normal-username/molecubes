@@ -73,7 +73,6 @@ extern bool SHOW_UART_COMMS_LOGS;
 //extern QueueHandle_t h_queue_ack;
 extern QueueHandle_t h_queue_debug;
 extern QueueHandle_t h_queue_handshake;
-extern QueueHandle_t h_queue_report;
 extern QueueHandle_t h_queue_servo;
 
 
@@ -131,7 +130,6 @@ void send_report_to_root();
 
 //*HANDLE_REPORT.CPP
 void init_report_handler(int* default_ids, int default_ids_len, bool use_default_ids);
-void task_handle_report(void* arg);
 void receive_new_report(PayloadReport p);
 int get_ids_array_len();
 void get_ids_array(int* arr, int len);

@@ -61,7 +61,8 @@ void sort_new_msg(Msg *msg){
     }else if (msg->type == type_handshake){
         handle_handshakes(msg);
     }else if(msg->type == type_report){
-        xQueueSend(h_queue_report, &msg, portMAX_DELAY);
+        //chiamndo direttamente la funzione per gestire i report senza dover creare una task e una coda apposita
+        receive_new_report(msg->payload.payload_report);
     }else if(msg->type == type_servo_ack){ 
         //decrementando il contatore di ack
         ESP_LOGI("UART COMMS", "Ack ricevuto da %d", msg->sender_id);

@@ -160,18 +160,5 @@ void init_report_handler(int* default_ids, int default_ids_len, bool use_default
     }
 }
 
-void task_handle_report(void* arg){
-  if(SELF_ID.load() != ROOT_ID){ //it shouldn't be the case.
-    task_handle_report_handle = NULL;
-    vTaskDelete(nullptr);
-  }
 
-  while(1){
-  Msg* msg = nullptr;
-  xQueueReceive(h_queue_report, &msg, portMAX_DELAY);
-    receive_new_report(msg->payload.payload_report);
-    // free the message allocated by the UART layer
-    free_msg(msg);
-  }
-}
 

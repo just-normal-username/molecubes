@@ -140,11 +140,7 @@ esp_err_t init_uart_comms(){
     ESP_LOGE("UART COMMS", "Failed to create h_queue_send_to_master");
     return ESP_FAIL;
   }
-  h_queue_report = xQueueCreate(10, sizeof(Msg*));
-  if (h_queue_report == NULL) {
-    ESP_LOGE("UART COMMS", "Failed to create h_queue_report");
-    return ESP_FAIL;
-  }
+  
   h_queue_servo = xQueueCreate(10, sizeof(Msg*));
   if (h_queue_servo == NULL) {
     ESP_LOGE("UART COMMS", "Failed to create h_queue_servo");
@@ -195,11 +191,6 @@ esp_err_t init_uart_comms(){
     result = xTaskCreate(task_ping_slave, "task_ping_slave", 5000, nullptr, 2, &task_ping_slave_handle);
     if (result != pdPASS) {
       ESP_LOGE("UART COMMS", "Failed to create task_ping_slave");
-      return ESP_FAIL;
-    }
-    result = xTaskCreate(task_handle_report, "task_handle_report", 5000, nullptr, 2, &task_handle_report_handle);
-    if (result != pdPASS) {
-      ESP_LOGE("UART COMMS", "Failed to create task_handle_report");
       return ESP_FAIL;
     }
   }

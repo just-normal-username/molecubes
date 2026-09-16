@@ -28,7 +28,6 @@ bool SHOW_UART_COMMS_LOGS = false;
 QueueHandle_t h_queue_command_01;
 QueueHandle_t h_queue_debug;
 QueueHandle_t h_queue_handshake;
-QueueHandle_t h_queue_report;
 QueueHandle_t h_queue_servo;
 
 //code x inviare messaggi
