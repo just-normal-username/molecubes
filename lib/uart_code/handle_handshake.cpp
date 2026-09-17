@@ -7,6 +7,7 @@
 #include "task_handler.h"
 #include <freertos/FreeRTOS.h>
 #include <freertos/semphr.h>
+#include <esp_log.h>
 
 //* _______________________________________ GESTIONE DI HANDSHAKE
 
@@ -17,6 +18,7 @@ void send_report_to_root(){
   while(xSemaphoreTake(h_semaphore_report, portMAX_DELAY) != pdTRUE){
     // Wait until we can take the semaphore
   };
+  ESP_LOGI("UART COMMS", "Sending report to root from module %d", SELF_ID.load());
   Payload p;
   p.payload_report.my_id = SELF_ID.load();
   p.payload_report.my_master_id = MASTER_ID.load();
@@ -25,6 +27,7 @@ void send_report_to_root(){
   // If I'm the root, handle the report locally
   if(SELF_ID.load() == ROOT_ID){
     receive_new_report(p.payload_report); //chiami direttamente il modulo
+    xSemaphoreGive(h_semaphore_report);
     return;
   }
 
@@ -33,6 +36,7 @@ void send_report_to_root(){
   // on the root (see issue with buffered reports).
   if(MASTER_ID.load() == UNKNOWN_ID){
     printf("[HANDSHAKE] MASTER unknown for SELF %d, deferring report\n", SELF_ID.load());
+    xSemaphoreGive(h_semaphore_report);
     return;
   }
 

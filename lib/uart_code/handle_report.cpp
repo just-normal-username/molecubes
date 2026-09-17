@@ -8,16 +8,18 @@
 #include <cstdio>
 #include <algorithm>
 #include <task_handler.h>
+#include <esp_log.h>
+#include <unordered_map>
 
 using namespace std;
 
-#define MAX_NODES 10
 
-module_id_t ids_array[MAX_NODES]; //ordinati
+
+vector<module_id_t> ids_array; //ordinati
 int ids_array_len = 0;
 
-PayloadReport dict[MAX_NODES]; //disordinati
-bool is_dict_ix_empty[MAX_NODES];
+
+unordered_map<module_id_t, pair<PayloadReport, bool>> dict_map; //disordinati
 
 
 
@@ -45,71 +47,80 @@ void print_ids_array(){
 
 
 void compute_ids_array(){
-    ids_array[0] = ROOT_ID; // ROOT_ID == 0
+    if (ids_array_len > 0) {
+        ids_array.clear();
+        ids_array_len = 0;
+    }
+    ids_array.push_back(ROOT_ID); // ROOT_ID == 0
     ids_array_len = 1; // reset the array
 
     // avoid loops
-    bool is_node_already_in_ids_array[MAX_NODES];
-    for (int i = 0; i < MAX_NODES; ++i){
-        is_node_already_in_ids_array[i] = false;
-    }
+    unordered_map<module_id_t, bool> is_node_already_in_ids_array; 
     is_node_already_in_ids_array[ROOT_ID] = true;
 
     module_id_t curr_node_id = ROOT_ID;
-    for (int step = 0; step < MAX_NODES - 1; step++) {
-        module_id_t next_node_id = -1;
-        //find dict[j].my_master_id == curr_node_id
-        for (int j = 0; j < MAX_NODES; j++) {
-            if (is_node_already_in_ids_array[j]){
-                continue;
-            } 
-            if (is_dict_ix_empty[j]){ //non è mai arrivato un report con un SELF_ID == j
-                continue;
-            }
-            if (dict[j].my_master_id == curr_node_id) {
-                next_node_id = j;
-                break;
-            }
+    module_id_t next_node_id;
+    pair<PayloadReport, bool> current_node_info;
+    unordered_map<module_id_t, pair<PayloadReport, bool>>::iterator current_node_iter;
+    while(true) {
+        current_node_iter = dict_map.find(curr_node_id);
+        if (current_node_iter == dict_map.end()) {
+            break; // No report for the current node
         }
-
-        if (next_node_id == -1){
-            break; //chain ends
+        current_node_info = current_node_iter->second;
+        if (current_node_info.second == false) {
+            break; // No report for the current node
         }
-        
-        ids_array[ids_array_len] = next_node_id;
-        ids_array_len +=1;
+        next_node_id = current_node_info.first.my_slave_id;
+        ESP_LOGI("UART COMMS", "Current node: %d, Next node: %d", curr_node_id, next_node_id);
+        if (next_node_id == UNKNOWN_ID|| is_node_already_in_ids_array[next_node_id]) {
+            break;
+        }
+        ids_array.push_back(next_node_id);
         is_node_already_in_ids_array[next_node_id] = true;
+        ids_array_len += 1;
         curr_node_id = next_node_id;
     }
 }
 
-//todo in questo modo però se dovessero arrivare report fuori ordine potrebbe succedere che un nodo intermedio
-//invii un report con slave sconosciuto 
+//rimuove tutto il sottoalbero a partire da node_id, compreso node_id stesso
 void remove_subtree_recursive(module_id_t node_id) {
-    for (int j = 0; j < MAX_NODES; ++j) {
-        if (is_dict_ix_empty[j]){
-            continue;
-        }
-        if (dict[j].my_master_id == node_id) {
-            remove_subtree_recursive(j);
-            
-            // rimuovi j
-            is_dict_ix_empty[j] = true;
-            dict[j].my_master_id = UNKNOWN_ID;
-            dict[j].my_slave_id = UNKNOWN_ID;
-            dict[j].my_id = j;
-        }
+    unordered_map<module_id_t, pair<PayloadReport, bool>>::iterator node_iter = dict_map.find(node_id);
+    if (node_iter == dict_map.end()) {
+        return;
     }
+    pair<PayloadReport, bool> node_info=node_iter->second;
+    //entry vuota
+    if (node_info.second == false) {
+        return;
+    }
+    remove_subtree_recursive(node_info.first.my_slave_id); //rimuovi il sottoalbero del figlio
+    
+    // rimuovi j
+    node_info.second = false;
+    node_info.first.my_master_id = UNKNOWN_ID;
+    node_info.first.my_slave_id = UNKNOWN_ID;
+    dict_map[node_id] = node_info;
 }
 
 
 void receive_new_report(PayloadReport p){
-    dict[p.my_id] = p;
-    is_dict_ix_empty[p.my_id] = false;
+    ESP_LOGI("UART COMMS", "Received new report from module %d: MASTER=%d, SLAVE=%d", p.my_id, p.my_master_id, p.my_slave_id);
+    //se il valore è già presente viene aggiornato, altrimenti viene creato
+    unordered_map<module_id_t, pair<PayloadReport, bool>>::iterator slave_id_before_iter = dict_map.find(p.my_id);
+    module_id_t slave_id_before;
+    if (slave_id_before_iter == dict_map.end()) {
+        slave_id_before = UNKNOWN_ID;
+    } else{
+        slave_id_before = slave_id_before_iter->second.first.my_slave_id;
+    }
+    dict_map[p.my_id] = make_pair(p, true);
+    ESP_LOGI("UART COMMS", "Updated dict for module %d: MASTER=%d, SLAVE=%d", p.my_id, dict_map.find(p.my_id)->second.first.my_master_id, dict_map.find(p.my_id)->second.first.my_slave_id);
+    int len_before=get_ids_array_len();
 
     
-    if (p.my_slave_id == UNKNOWN_ID) {
-        remove_subtree_recursive(p.my_id);
+    if (p.my_slave_id == UNKNOWN_ID&& slave_id_before != UNKNOWN_ID) {
+        remove_subtree_recursive(slave_id_before);
     }
 
     compute_ids_array();
@@ -119,7 +130,11 @@ void receive_new_report(PayloadReport p){
         print_ids_array();
         cout << "___RECEIVED NEW REPORT:" << endl;
     }
-    ProtocolManager::set_num_servos((uint8_t)get_ids_array_len());
+    int len_after=get_ids_array_len();
+    //manda un aggiornamento solo se è necessario
+    if(len_before != len_after){
+        ProtocolManager::set_num_servos((uint8_t)len_after);
+    }
 }
 
 
@@ -128,26 +143,23 @@ int get_ids_array_len(){
 }
 
 void get_ids_array(int* arr, int len){ //copia ids_array in arr
-    for(int i=0; i<min(len, ids_array_len); i++){
+    for(int i=0; i<min(len, (int) ids_array.size()); i++){
         arr[i] = ids_array[i];
     }
 }
 
 
 void init_report_handler(int* default_ids, int default_ids_len, bool use_default_ids){
-    for(int i = 0; i < MAX_NODES; i++) {
-        is_dict_ix_empty[i] = true;
-    }
 
     if(use_default_ids){
         for(int i=0; i<default_ids_len; i++){
-            ids_array[i] = default_ids[i];
+            ids_array.push_back(default_ids[i]);
         }
         ids_array_len=default_ids_len;
 
     }else{
         //*INIT IDS_ARRAY[] (ROOT IS ALONE)
-        ids_array[0] = ROOT_ID; //ROOT_ID == 0
+        ids_array.push_back(ROOT_ID); //ROOT_ID == 0
         ids_array_len = 1; 
 
         //*INIT DICT[] e IS_DICT_EMPTY[] (ROOT IS ALONE)
@@ -155,10 +167,6 @@ void init_report_handler(int* default_ids, int default_ids_len, bool use_default
         pr.my_id = ROOT_ID;
         pr.my_master_id = UNKNOWN_ID;
         pr.my_slave_id = UNKNOWN_ID;
-        dict[0] = pr;
-        is_dict_ix_empty[0] = false;
+        dict_map[ROOT_ID] = make_pair(pr, true);
     }
 }
-
-
-
