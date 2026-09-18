@@ -129,10 +129,10 @@ void send_report_to_root();
 
 
 //*HANDLE_REPORT.CPP
-void init_report_handler(int* default_ids, int default_ids_len, bool use_default_ids);
+void init_report_handler(module_id_t* default_ids, int default_ids_len, bool use_default_ids);
 void receive_new_report(PayloadReport p);
 int get_ids_array_len();
-void get_ids_array(int* arr, int len);
+void get_ids_array(module_id_t* arr, int len);
 void print_ids_array();
 
 

@@ -46,7 +46,7 @@ esp_err_t create_and_buffer_msg(module_id_t sender_id, module_id_t target_id, Pa
 esp_err_t convert_servo_instructions(const Command& command){
     // qua ci sono solo comandi validi, quindi non serve fare controlli di validità
     int total_nodes = get_ids_array_len();
-    int ids_arr[total_nodes];
+    module_id_t ids_arr[total_nodes];
     get_ids_array(ids_arr, total_nodes);
 
 

@@ -185,8 +185,10 @@ esp_err_t init_uart_comms(){
 
 
   //*HANDSHAKE
-  int arr[3] = {0,1,2};
-  init_report_handler(arr, 3, USE_DEFAULT_IDS);
+  if (SELF_ID.load() == ROOT_ID) {
+    module_id_t arr[3] = {0,1,2};
+    init_report_handler(arr, 3, USE_DEFAULT_IDS);
+  }
   if(!USE_DEFAULT_IDS){
     result = xTaskCreate(task_ping_slave, "task_ping_slave", 5000, nullptr, 2, &task_ping_slave_handle);
     if (result != pdPASS) {
