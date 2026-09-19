@@ -6,6 +6,7 @@
 #include "esp_log.h"
 #include <cstdlib> 
 #include <esp_err.h>
+#include <cmath>
 
 static const char* TAG = "ProtocolManager";
 
@@ -173,7 +174,7 @@ esp_err_t ProtocolManager::handle_incoming(const std::string& line)
                     float value2 = std::strtof(value.c_str(), &endptr); //todo strtoi?
                     
                     // Check number format (exception-free)
-                    if (endptr == value.c_str() || *endptr != '\0') {
+                    if (endptr == value.c_str() || *endptr != '\0'|| floor(value2) != value2) { // Check if the value is a valid integer
                         reply("ERROR invalid_format — expected numbers separated by spaces");
                         return ESP_FAIL;
                     }

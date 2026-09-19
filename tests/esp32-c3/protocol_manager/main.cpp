@@ -34,7 +34,7 @@ esp_err_t test_protocol_parser() {
         result = ESP_FAIL;
     }
     vTaskDelay(pdMS_TO_TICKS(2000));
-    if (ProtocolManager::handle_incoming("G6 N0 P90.0 S1.0 A2.0 J3.0 N1 P45.0 J1.5 N2 P45.0 J1.5 N3 P45.0 J1.5") != ESP_OK) {
+    if (ProtocolManager::handle_incoming("G6 N0 P1,5708 S1.0 A2.0 J3.0 N1 P0,785398 J1.5 N2 P0,785398 J1.5 N3 P0,785398 J1.5") != ESP_OK) {
         ESP_LOGE("TEST", "Fallito a interpretare il comando G6 multiplo.");
         result = ESP_FAIL;
     }
@@ -75,19 +75,19 @@ esp_err_t test_commands_execution(){
     ProtocolManager::handle_incoming("M505");
     esp_err_t result=ESP_OK;
     //test comando G6
-    ProtocolManager::handle_incoming("G6 N0 P90.0");
+    ProtocolManager::handle_incoming("G6 N0 P1,5708");
     ProtocolManager::handle_incoming("M24");
     vTaskDelay(pdMS_TO_TICKS(4000));
     if (abs(servo_data.current_pos.load()-90.0f*(M_PI/180.0f))>0.1f || ack_to_receive.load() != 0){
-        ESP_LOGE("TEST", "Fallito a eseguire il comando G6 N0 P90.0");
+        ESP_LOGE("TEST", "Fallito a eseguire il comando G6 N0 P1,5708");
         result=ESP_FAIL;
     }
     //test comando G6 per un servo diverso
-    ProtocolManager::handle_incoming("G6 N1 P90.0");
+    ProtocolManager::handle_incoming("G6 N1 P1,5708");
     ProtocolManager::handle_incoming("M24");
     vTaskDelay(pdMS_TO_TICKS(4000));
     if (ack_to_receive.load() != 0){
-        ESP_LOGE("TEST", "Fallito a ricevere l'ack del comando G6 N1 P90.0. ack_to_receive: %d", ack_to_receive.load());
+        ESP_LOGE("TEST", "Fallito a ricevere l'ack del comando G6 N1 P1,5708. ack_to_receive: %d", ack_to_receive.load());
         result=ESP_FAIL;
     }
     //test comando G4
@@ -137,11 +137,11 @@ esp_err_t test_commands_sequence(){
     vTaskDelay(pdMS_TO_TICKS(20));
     ProtocolManager::handle_incoming("G6 N0 P0.0 N1 P0.0 N2 P0.0 N3 P0.0");
     vTaskDelay(pdMS_TO_TICKS(20));
-    ProtocolManager::handle_incoming("G6 N0 P-139 N1 P-139 N2 P-139 N3 P-139");
+    ProtocolManager::handle_incoming("G6 N0 P-2,42601 N1 P-2,42601 N2 P-2,42601 N3 P-2,42601");
     vTaskDelay(pdMS_TO_TICKS(20));
-    ProtocolManager::handle_incoming("G6 N0 P-139 N1 P-60 N2 P0 N3 P0");
+    ProtocolManager::handle_incoming("G6 N0 P-2,42601 N1 P-1,0472 N2 P0 N3 P0");
     vTaskDelay(pdMS_TO_TICKS(20));
-    ProtocolManager::handle_incoming("G6 N0 P-139 N1 P-60 N2 P-60 N3 P-139");
+    ProtocolManager::handle_incoming("G6 N0 P-2,42601 N1 P-1,0472 N2 P-1,0472 N3 P-2,42601");
     vTaskDelay(pdMS_TO_TICKS(20));
     ProtocolManager::handle_incoming("M24");
     vTaskDelay(pdMS_TO_TICKS(30000));

@@ -57,7 +57,6 @@ esp_err_t convert_servo_instructions(const Command& command){
     p.payload_servo.acceleration = default_acc;
     p.payload_servo.jerk = default_jerk;
     int group_number=0;
-    esp_err_t result = ESP_OK;
     switch(command.gcode){
         case Gcode::G6:{
             // Handle G6 command specifics
@@ -103,7 +102,7 @@ esp_err_t convert_servo_instructions(const Command& command){
                     command.values[i]
                 );
                 if (command.args[i] == Args::P) {
-                    p.payload_servo.radians = command.values[i] * (M_PI / 180.0f); // Convert degrees to radians
+                    p.payload_servo.radians = command.values[i]; 
                 } else if (command.args[i] == Args::S) {
                     // Handle S argument specifics
                     p.payload_servo.speed = command.values[i];
@@ -263,12 +262,3 @@ esp_err_t convert_servo_instructions(const Command& command){
     return ESP_OK;
 }
 
-
-
-void send_servo_movement_ack_to_root(module_id_t my_id, float radians){
-    // Ensure payload is zero-initialized to avoid garbage bytes
-    Payload p{};
-    p.payload_servo.radians = radians;
-    Msg* msg = create_msg(my_id, ROOT_ID, type_servo_ack, p);
-    send_msg_to_master(msg);
-}
