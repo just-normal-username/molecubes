@@ -95,7 +95,7 @@ void sort_new_msg(Msg *msg){
 }
 
 
-void task_receive_uart(void *arg) { //todo fixare memory leak busy waiting, interrupt quando nel buffer ci sono n byte?
+void task_receive_uart(void *arg) { //todo fixare busy waiting, interrupt quando nel buffer ci sono n byte?
     uart_port_t selected_uart = (uart_port_t)(int32_t)arg;
     int flow_counter = 0; // Per distinguere i vari tentativi di ricezione
 

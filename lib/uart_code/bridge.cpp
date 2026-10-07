@@ -230,23 +230,27 @@ esp_err_t convert_servo_instructions(const Command& command){
         }
         case Gcode::M24:{
             // Handle M24 command
-            manual_pause.store(false); // setta la pausa manuale a falso
-            if (xTaskNotify(buffer_task_handle, 0x1, eSetValueWithOverwrite) != pdPASS) {
-                ESP_LOGE("SERVO_API", "Failed to notify buffer task.");
-            }
-            else{
-                ESP_LOGI("SERVO_API", "Buffer task notified successfully.");
+            if (stopped.load()) {
+                stopped.store(false); // setta la pausa manuale a falso
+                if (xTaskNotify(buffer_task_handle, 0x1, eSetValueWithOverwrite) != pdPASS) {
+                    ESP_LOGE("SERVO_API", "Failed to notify buffer task.");
+                }
+                else{
+                    ESP_LOGI("SERVO_API", "Buffer task notified successfully.");
+                }
             }
             break;
         }
         case Gcode::M25:{
             // Handle M25 command
-            manual_pause.store(true); // setta la pausa manuale a vero
-            if (xTaskNotify(buffer_task_handle, 0x2, eSetValueWithOverwrite) != pdPASS) {
-                ESP_LOGE("SERVO_API", "Failed to notify buffer task.");
-            }
-            else{
-                ESP_LOGI("SERVO_API", "Buffer task notified successfully.");
+            if (!stopped.load()) {
+                stopped.store(true); // setta la pausa manuale a vero
+                if (xTaskNotify(buffer_task_handle, 0x2, eSetValueWithOverwrite) != pdPASS) {
+                    ESP_LOGE("SERVO_API", "Failed to notify buffer task.");
+                }
+                else{
+                    ESP_LOGI("SERVO_API", "Buffer task notified successfully.");
+                }
             }
             break;
         }
@@ -254,6 +258,7 @@ esp_err_t convert_servo_instructions(const Command& command){
             // Handle M505 command
             xQueueReset(h_queue_cmd_buffer); // Reset the command buffer queue
             ack_to_receive.store(0); // Reset the ack counter
+            stopped.store(true); 
             ESP_LOGI("SERVO_API", "Command buffer svuotato");
             break;
         }

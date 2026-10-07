@@ -171,7 +171,7 @@ esp_err_t ProtocolManager::handle_incoming(const std::string& line)
                     std::string value=token.substr(1);
                     char* endptr = nullptr;
                     // Parse strings to floats and validate the physical limits of the motors
-                    float value2 = std::strtof(value.c_str(), &endptr); //todo strtoi?
+                    float value2 = std::strtof(value.c_str(), &endptr); 
                     
                     // Check number format (exception-free)
                     if (endptr == value.c_str() || *endptr != '\0'|| floor(value2) != value2) { // Check if the value is a valid integer

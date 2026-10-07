@@ -92,7 +92,7 @@ esp_err_t test_commands_execution(){
     }
     //test comando G4
     ProtocolManager::handle_incoming("G4 5000");
-    ProtocolManager::handle_incoming("G6 N0 P0.0"); //todo problema non fa la backlash compensation e non invia l'ack
+    ProtocolManager::handle_incoming("G6 N0 P0.0"); 
     ProtocolManager::handle_incoming("M24");
     vTaskDelay(pdMS_TO_TICKS(1000));
     if (abs(servo_data.current_pos.load()-90.0f*(M_PI/180.0f))>0.1f){
@@ -124,8 +124,8 @@ esp_err_t test_commands_execution(){
     vTaskDelay(pdMS_TO_TICKS(50));
     ProtocolManager::handle_incoming("M25");
     vTaskDelay(pdMS_TO_TICKS(1000));
-    if (manual_pause.load() != true|| ack_to_receive.load() != 0){
-        ESP_LOGE("TEST", "Fallito a eseguire il comando M25, manual_pause: %d", manual_pause.load());
+    if (stopped.load() != true|| ack_to_receive.load() != 0){
+        ESP_LOGE("TEST", "Fallito a eseguire il comando M25, stopped: %d", stopped.load());
         result=ESP_FAIL;
     }
     return result;

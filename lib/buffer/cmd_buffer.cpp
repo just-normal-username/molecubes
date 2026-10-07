@@ -19,23 +19,25 @@ std::atomic<int> ack_to_receive; //indice che indica quanti ack sono ancora da r
 std::atomic<bool> status = false; 
 
 
-std::atomic<bool> manual_pause=true; // Flag che indica lo start/stop manuale
+std::atomic<bool> stopped=true; // Flag che indica lo start/stop manuale
 
 
 void buffer_task(void *pvParameters) {
-    bool value;
     uint8_t group_number=1;
     while (1) {
         vTaskDelay(pdMS_TO_TICKS(10)); //necessaria per evitare che venga triggerato il WDT su burst di comandi
         if (status.load()==false){
             //se in stato di stop attende la ricezione del messaggio di start, anche in caso di timeout esegue il ciclo e ritorna qui
             if (ulTaskNotifyTake(pdTRUE,portMAX_DELAY) == 0x1) {
-                ESP_LOGI("CMD_BUFFER", "task buffer ha ricevuto il comando di start, manual_pause=%d", manual_pause.load());
+                ESP_LOGI("CMD_BUFFER", "task buffer ha ricevuto il comando di start, stopped=%d", stopped.load());
                 // setta lo stato in esecuzione solo se non è in pausa manuale
-                if (!manual_pause.load()) {
+                if (!stopped.load()) {
                     status.store(true);
                     ESP_LOGI("CMD_BUFFER", "Buffer task started processing commands.");
                 }
+            }
+            else{
+                //ricevuto comando di pausa manuale mentre la task era in attesa
             }
         }
         else{
@@ -92,11 +94,12 @@ void buffer_task(void *pvParameters) {
                     else{
                         // settando stato di stop, in questo modo la task resta in attesa
                         status.store(false);
+                        stopped.store(true); // setta la pausa manuale a vero
                         send_sequence_ack(); //invia l'ack di fine sequenza
                     }
                 }
                 else{
-                    // settando stato di stop, in questo modo la task resta in attesa
+                    // settando stato di stop, in questo modo la task resta in attesa degli ack
                     status.store(false);
                 }
             }
